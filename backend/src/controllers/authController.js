@@ -1,5 +1,4 @@
-﻿
-const { supabase } = require('../utils/supabaseClient');
+﻿const { supabase } = require('../utils/supabaseClient');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -22,7 +21,7 @@ exports.registerCustomer = async (req, res) => {
   }
 
   try {
-    //Đăng ký + tự động login
+    // Đăng ký + tự động login
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -48,7 +47,7 @@ exports.registerCustomer = async (req, res) => {
       });
     }
 
-    //Dùng session.access_token để insert
+    // Dùng session.access_token để insert
     const { data: customer, error: insertError } = await supabase
       .from('customers')
       .insert({
@@ -80,7 +79,7 @@ exports.registerCustomer = async (req, res) => {
       });
     }
 
-    //Tạo JWT của bạn
+    // Tạo JWT
     const token = jwt.sign(
       {
         userId: user.id,
@@ -111,43 +110,69 @@ exports.registerCustomer = async (req, res) => {
     });
   }
 };
-//ĐĂNG NHẬP
+
+// ĐĂNG NHẬP
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ success: false, message: 'Thiếu email hoặc mật khẩu' });
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Thiếu email hoặc mật khẩu' });
+  }
 
   try {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (authError || !authData?.user) {
       return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }
 
     const userId = authData.user.id;
 
-    // Kiểm tra role
-    const [{ data: profile }, { data: customer }] = await Promise.all([
-      supabase.from('profiles').select('role, full_name').eq('id', userId).single().catch(() => ({ data: null })),
-      supabase.from('customers').select('id, full_name').eq('user_id', userId).single().catch(() => ({ data: null }))
-    ]);
+    let profile = null;
+    let customer = null;
+
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', userId)
+        .single();
+      if (!profileError && profileData) profile = profileData;
+    } catch (e) {}
+
+    try {
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('id, full_name')
+        .eq('user_id', userId)
+        .single();
+      if (!customerError && customerData) customer = customerData;
+    } catch (e) {}
 
     const role = profile?.role || 'customer';
-    const full_name = profile?.full_name || customer?.full_name || email;
+    const full_name = profile?.full_name || customer?.full_name || email.split('@')[0];
     const customerId = customer?.id || null;
 
-    const token = jwt.sign({ userId, email, role, customerId }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { userId, email: authData.user.email, role, customerId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Đăng nhập thành công',
-      data: { token, role, full_name, customerId }
+      data: { token, role, full_name, customerId },
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    return res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
 
-//TẠO ADMIN/STAFF
+// TẠO ADMIN/STAFF
 exports.createStaffOrAdmin = async (req, res) => {
   const { email, password, full_name, role = 'staff' } = req.body;
 
@@ -176,5 +201,79 @@ exports.createStaffOrAdmin = async (req, res) => {
     res.status(201).json({ success: true, message: 'Tạo tài khoản thành công' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// GET PROFILE
+exports.getProfile = async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Nếu là customer
+    if (user.role === 'customer' && user.customerId) {
+      const { data: customer, error } = await supabase
+        .from('customers')
+        .select('id, full_name, email, phone_number, identity_card, address, type')
+        .eq('id', user.customerId)
+        .single();
+
+      if (error || !customer) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy khách hàng' });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          customerId: customer.id,
+          full_name: customer.full_name,
+          email: customer.email,
+          phone_number: customer.phone_number,
+          identity_card: customer.identity_card,
+          address: customer.address,
+          type: customer.type,
+          role: user.role
+        }
+      });
+    }
+
+    // Nếu là admin hoặc staff
+    if (['admin', 'staff'].includes(user.role)) {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('id', user.userId)
+        .single();
+
+      if (error || !profile) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy profile' });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          full_name: profile.full_name,
+          email: user.email,
+          role: profile.role
+        }
+      });
+    }
+
+    // Fallback
+    return res.json({
+      success: true,
+      data: {
+        email: user.email,
+        role: user.role,
+        full_name: user.full_name || 'User'
+      }
+    });
+
+  } catch (err) {
+    console.error('Get profile error:', err);
+    return res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
