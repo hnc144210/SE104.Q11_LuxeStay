@@ -11,8 +11,6 @@ router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 // ADMIN: hủy booking bất kỳ
 router.delete('/bookings/:id', bookingController.cancelBookingByStaffAdmin);
 
-const express = require('express');
-const router = express.Router();
 
 router.use('/staff', require('./staffRoutes'));
 
