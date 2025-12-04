@@ -1,2 +1,6 @@
-﻿const router = require('express').Router();
+﻿const express = require('express');
+const router = express.Router();
+
+router.use('/staff', require('./staffRoutes'));
+
 module.exports = router;
