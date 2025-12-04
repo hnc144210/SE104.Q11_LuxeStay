@@ -10,5 +10,6 @@ router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 
 // STAFF: hủy booking cho khách
 router.delete('/bookings/:id', bookingController.cancelBookingByStaffAdmin);
-
+ 
+router.post('/customers', require('../staff/customerRoutes'));
 module.exports = router;
