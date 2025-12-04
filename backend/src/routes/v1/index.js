@@ -16,3 +16,4 @@ router.use('/customer', customerRoutes);
 router.use('/staff', staffRoutes);
 
 module.exports = router;
+//routes/v1/index.js
