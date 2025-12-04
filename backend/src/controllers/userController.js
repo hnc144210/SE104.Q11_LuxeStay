@@ -117,3 +117,88 @@ exports.createCustomer = async (req, res) => {
     });
   }
 };
+
+exports.getCustomers = async (req, res) => {
+  try {
+    const userRole = req.user?.role;
+    if (!['staff', 'admin'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ nhân viên mới có quyền xem danh sách khách hàng'
+      });
+    }
+
+    // Lấy query params để filter và phân trang
+    const {
+      type,           // 'domestic' | 'foreign'
+      search,         // tìm theo tên, CMND, phone
+      page = 1,
+      limit = 20,
+      sortBy = 'created_at',
+      sortOrder = 'desc'
+    } = req.query;
+
+    // Validate page và limit
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build query
+    let query = supabase
+      .from('customers')
+      .select('*', { count: 'exact' });
+
+    // Filter theo type
+    if (type && ['domestic', 'foreign'].includes(type)) {
+      query = query.eq('type', type);
+    }
+
+    // Search theo tên, CMND, phone
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query = query.or(
+        `full_name.ilike.%${searchTerm}%,identity_card.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%`
+      );
+    }
+
+    // Sorting
+    const validSortFields = ['created_at', 'full_name', 'type'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const sortDirection = sortOrder === 'asc' ? true : false;
+    
+    query = query.order(sortField, { ascending: sortDirection });
+
+    // Pagination
+    query = query.range(offset, offset + limitNum - 1);
+
+    // Execute query
+    const { data: customers, error, count } = await query;
+
+    if (error) throw error;
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(count / limitNum);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách khách hàng thành công',
+      data: customers,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: count,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
+    });
+
+  } catch (error) {
+    console.error('getCustomers error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};

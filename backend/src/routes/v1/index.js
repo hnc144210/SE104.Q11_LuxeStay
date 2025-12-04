@@ -1,7 +1,7 @@
 ﻿const express = require('express');
 const router = express.Router();
 
-const { authenticate } = require('../../middleware/auth');  // Path từ v1/ đến src/middleware/auth.js
+const { authenticate } = require('../../middleware/auth');
 
 // Import routes
 const authRoutes = require('./common/authRoutes');
