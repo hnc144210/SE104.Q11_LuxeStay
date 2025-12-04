@@ -256,3 +256,130 @@ exports.getCustomerById = async (req, res) => {
     });
   }
 };
+
+exports.updateCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      identity_card: identityCard,
+      full_name: fullName,
+      type,
+      phone_number: phone,
+      email,
+      address
+    } = req.body;
+
+    // Kiểm tra quyền
+    const userRole = req.user?.role;
+    if (!['staff', 'admin'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ nhân viên mới có quyền cập nhật thông tin khách hàng'
+      });
+    }
+
+    // Validate ID
+    const idNum = parseInt(id, 10);
+    if (isNaN(idNum)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID khách hàng không hợp lệ'
+      });
+    }
+
+    // Kiểm tra khách hàng có tồn tại
+    const { data: existingCustomer, error: findErr } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (findErr) throw findErr;
+
+    if (!existingCustomer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khách hàng'
+      });
+    }
+
+    // Build object cập nhật
+    const updates = {};
+
+    if (identityCard !== undefined && identityCard !== existingCustomer.identity_card) {
+      updates.identity_card = identityCard;
+    }
+
+    if (fullName !== undefined && fullName !== existingCustomer.full_name) {
+      if (!fullName || fullName.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Họ tên không được để trống'
+        });
+      }
+      updates.full_name = fullName;
+    }
+
+    
+    if (phone !== undefined && phone !== existingCustomer.phone_number) {
+      if (!phone || !/^[0-9]{10,11}$/.test(phone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Số điện thoại phải có 10-11 chữ số'
+        });
+      }
+      updates.phone_number = phone;
+    }
+
+    if (email !== undefined && email !== existingCustomer.email) {
+      updates.email = email || null;
+    }
+
+    if (address !== undefined && address !== existingCustomer.address) {
+      updates.address = address || '';
+    }
+
+    // Nếu không có gì thay đổi
+    if (Object.keys(updates).length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Không có thông tin nào thay đổi',
+        data: existingCustomer
+      });
+    }
+
+
+    // Cập nhật
+    const { data: updatedCustomer, error: updateErr } = await supabase
+      .from('customers')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      // Xử lý duplicate từ DB error
+      if (updateErr.code === '23505') {
+        return res.status(409).json({
+          success: false,
+          message: 'Số CMND/CCCD hoặc email đã tồn tại'
+        });
+      }
+      throw updateErr;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật thông tin khách hàng thành công',
+      data: updatedCustomer
+    });
+
+  } catch (error) {
+    console.error('updateCustomer error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
