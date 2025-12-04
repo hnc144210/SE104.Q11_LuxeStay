@@ -202,3 +202,57 @@ exports.getCustomers = async (req, res) => {
     });
   }
 };
+
+
+exports.getCustomerById = async (req, res) => {
+  try {
+      const { id } = req.params;
+      
+    const userRole = req.user?.role;
+    if (!['staff', 'admin'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ nhân viên mới có quyền xem thông tin khách hàng'
+      });
+    }
+
+    // Validate ID
+    const idNum = parseInt(id, 10);
+    if (isNaN(idNum)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID khách hàng không hợp lệ'
+      });
+    }
+
+    // Lấy thông tin khách hàng
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khách hàng'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy thông tin khách hàng thành công',
+      data: customer
+    });
+
+  } catch (error) {
+    console.error('getCustomerById error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
