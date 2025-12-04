@@ -1,0 +1,15 @@
+/* 1. Import Font chữ (Poppins & Volkhov) */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Volkhov:wght@700&display=swap");
+
+/* 2. Cấu hình Tailwind bắt buộc */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 3. Global Styles (Tùy chọn: Reset mặc định) */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Poppins", sans-serif; /* Font mặc định cho toàn web */
+  -webkit-font-smoothing: antialiased;
+}
