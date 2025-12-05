@@ -1,8 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+const { supabase } = require('../utils/supabaseClient');
 
 exports.createCustomer = async (req, res) => {
   try {
@@ -376,6 +372,89 @@ exports.updateCustomer = async (req, res) => {
 
   } catch (error) {
     console.error('updateCustomer error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+exports.getStaff = async (req, res) => {
+  try {
+    const userRole = req.user?.role;
+    if (userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ admin mới có quyền xem danh sách nhân viên'
+      });
+    }
+
+    // Lấy query params để filter và phân trang
+    const {
+      status,         // 'active' | 'inactive'
+      search,         // tìm theo tên, email
+      page = 1,
+      limit = 20,
+      sortBy = 'created_at',
+      sortOrder = 'desc'
+    } = req.query;
+
+    // Validate page và limit
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build query - chỉ lấy user có role là 'staff'
+    let query = supabase
+      .from('profiles')
+      .select('id, email, full_name, phone_number, status, role, created_at, updated_at', { count: 'exact' })
+      .eq('role', 'staff');
+
+    // Filter theo status
+    if (status && ['active', 'inactive'].includes(status)) {
+      query = query.eq('status', status);
+    }
+
+    // Search theo tên, email, username
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query = query.or(
+        `full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+      );
+    }
+
+    // Sorting
+    const validSortFields = ['created_at', 'full_name', 'email', 'status'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const sortDirection = sortOrder === 'asc' ? true : false;
+    
+    query = query.order(sortField, { ascending: sortDirection });
+
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data: staff, error, count } = await query;
+
+    if (error) throw error;
+
+    const totalPages = Math.ceil(count / limitNum);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách nhân viên thành công',
+      data: staff,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: count,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
+    });
+
+  } catch (error) {
+    console.error('getStaff error:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',
