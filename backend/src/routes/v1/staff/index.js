@@ -1,19 +1,14 @@
-﻿const router = require("express").Router();
-
-const { authenticate } = require("../../../middleware/auth");
-const bookingController = require("../../../controllers/bookingController");
-const customerRoutes = require("./customerRoutes");
-
-// Tất cả route staff đều cần đăng nhập
+﻿const router = require('express').Router();
+const bookingController = require('../../../controllers/bookingController');
+const customerRoutes = require('./customerRoutes');
 router.use(authenticate);
-
+router.use(authorize(['admin']));
 // STAFF: xem danh sách booking
-router.get("/bookings", bookingController.getBookingsForStaffAdmin);
+router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 
 // STAFF: hủy booking
-router.delete("/bookings/:id", bookingController.cancelBookingByStaffAdmin);
+router.delete('/bookings/:id', bookingController.cancelBookingByStaffAdmin);
 
-// STAFF: quản lý khách hàng
-router.use("/customers", customerRoutes);
+router.use('/customers', customerRoutes);
 
 module.exports = router;
