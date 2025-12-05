@@ -77,14 +77,7 @@ exports.registerCustomer = async (req, res) => {
     }
 
     if (user?.id) {
-      await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users/${user.id}`, {
-        method: 'DELETE',
-        headers: {
-          apikey: process.env.SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }).catch(console.error);
+      await supabase.auth.admin.deleteUser(user.id).catch(console.error);
     }
 
   return res.status(400).json({
