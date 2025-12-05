@@ -1,23 +1,24 @@
-require('dotenv').config();
-const express = require('express');
+require("dotenv").config();
+const express = require("express");
 const app = express();
 
 app.use(express.json());
-
+const cors = require("cors");
+app.use(cors()); // Cho phép tất cả các nguồn
 // Routes
-const v1Routes = require('./src/routes/v1');
-app.use('/api/v1', v1Routes);
+const v1Routes = require("./src/routes/v1");
+app.use("/api/v1", v1Routes);
 
 // Home
-app.get('/', (req, res) => {
-  res.json({ message: 'LuxeStay' });
+app.get("/", (req, res) => {
+  res.json({ message: "LuxeStay" });
 });
 
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: `Không tìm thấy: ${req.originalUrl}`
+    message: `Không tìm thấy: ${req.originalUrl}`,
   });
 });
 
@@ -26,8 +27,8 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
-    message: 'Lỗi server',
-    error: process.env.NODE_ENV === 'development' ? err.message : {}
+    message: "Lỗi server",
+    error: process.env.NODE_ENV === "development" ? err.message : {},
   });
 });
 
