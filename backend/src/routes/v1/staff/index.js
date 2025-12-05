@@ -1,13 +1,14 @@
 ﻿const router = require('express').Router();
+const bookingController = require('../../../controllers/bookingController');
 const customerRoutes = require('./customerRoutes');
-const bookingRoutes = require('./bookingRoutes');
-const { authenticate, authorize } = require('../../../middleware/auth');
 router.use(authenticate);
-router.use(authorize(['staff', 'admin']));
-// 1. Gom nhóm Booking
-router.use('/bookings', bookingRoutes);
+router.use(authorize(['admin']));
+// STAFF: xem danh sách booking
+router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 
+// STAFF: hủy booking
+router.delete('/bookings/:id', bookingController.cancelBookingByStaffAdmin);
 
+router.use('/customers', customerRoutes);
 
 module.exports = router;
-
