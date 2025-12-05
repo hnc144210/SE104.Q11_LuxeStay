@@ -62,8 +62,10 @@ export const HomePage = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
 
 export default HomePage;
+//home/HomePage.jsx

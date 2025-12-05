@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 const SearchForm = () => {
   const navigate = useNavigate();
-
   const [searchParams, setSearchParams] = useState({
     check_in_date: "",
     check_out_date: "",
@@ -16,11 +15,9 @@ const SearchForm = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-
-    // Tạo Query String: ?check_in_date=2023-12-01&check_out_date=...
+    // Tạo Query String để truyền lên URL
     const queryString = new URLSearchParams(searchParams).toString();
-
-    // Chuyển hướng kèm tham số trên URL
+    // Chuyển hướng sang trang kết quả kèm params
     navigate(`/search-results?${queryString}`);
   };
 
@@ -29,7 +26,6 @@ const SearchForm = () => {
       onSubmit={handleSearch}
       className="bg-white p-6 rounded-xl shadow-lg flex flex-wrap gap-4 items-end"
     >
-      {/* ... (Phần giao diện giữ nguyên) ... */}
       <div className="flex-1 min-w-[150px]">
         <label className="block text-sm font-bold text-gray-700 mb-1">
           Check-in
