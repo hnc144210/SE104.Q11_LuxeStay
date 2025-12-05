@@ -19,9 +19,18 @@ const authenticate = async (req, res, next) => {
     };
 
     next();
-  } catch (err) {
+  } // Sửa lại đoạn catch
+  catch (err) {
+    // 👇 Thêm dòng này để xem lỗi ở Terminal khi dev
+    console.error('Auth Error:', err.message); 
+    
+    // Có thể phân loại lỗi chi tiết hơn nếu thích
+    if (err.name === 'TokenExpiredError') {
+         return res.status(401).json({ success: false, message: 'Token đã hết hạn' });
+    }
+    
     return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
-  }
+}
 };
 
 const authorize = (roles = []) => {
