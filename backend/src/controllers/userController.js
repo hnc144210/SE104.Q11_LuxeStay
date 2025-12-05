@@ -1,4 +1,8 @@
-const { supabase } = require('../utils/supabaseClient');
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 exports.createCustomer = async (req, res) => {
   try {
@@ -408,24 +412,19 @@ exports.getStaff = async (req, res) => {
     // Build query - chỉ lấy user có role là 'staff'
     let query = supabase
       .from('profiles')
-      .select('id, email, full_name, phone_number, status, role, created_at, updated_at', { count: 'exact' })
+      .select('id, email, full_name, staff_code, role', { count: 'exact' })
       .eq('role', 'staff');
-
-    // Filter theo status
-    if (status && ['active', 'inactive'].includes(status)) {
-      query = query.eq('status', status);
-    }
 
     // Search theo tên, email, username
     if (search && search.trim()) {
       const searchTerm = search.trim();
       query = query.or(
-        `full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+        `full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,staff_code.ilike.%${searchTerm}%`
       );
     }
 
     // Sorting
-    const validSortFields = ['created_at', 'full_name', 'email', 'status'];
+    const validSortFields = ['created_at', 'full_name', 'email', 'staff_code'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
     const sortDirection = sortOrder === 'asc' ? true : false;
     
@@ -455,6 +454,60 @@ exports.getStaff = async (req, res) => {
 
   } catch (error) {
     console.error('getStaff error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+exports.getStaffById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const userRole = req.user?.role;
+    if (userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ admin mới có quyền xem thông tin nhân viên'
+      });
+    }
+
+    // Validate ID
+    const { validate } = require('uuid');
+    if (!validate(id)) {
+  return res.status(400).json({
+    success: false,
+    message: 'ID nhân viên không hợp lệ'
+  });
+}
+
+
+    const { data: staff, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, staff_code, role')
+      .eq('id', id)
+      .eq('role', 'staff')
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!staff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhân viên'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy thông tin nhân viên thành công',
+      data: staff
+    });
+
+  } catch (error) {
+    console.error('getStaffById error:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',

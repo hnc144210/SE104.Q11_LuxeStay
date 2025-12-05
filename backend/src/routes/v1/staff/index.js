@@ -1,8 +1,11 @@
 ﻿const router = require('express').Router();
 const bookingController = require('../../../controllers/bookingController');
 const customerRoutes = require('./customerRoutes');
+const { authenticate } = require('../../../middleware/auth');
+
+
 router.use(authenticate);
-router.use(authorize(['admin']));
+
 // STAFF: xem danh sách booking
 router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 
