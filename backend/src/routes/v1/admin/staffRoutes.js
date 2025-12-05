@@ -13,6 +13,7 @@ router
 
 router
   .route('/:id')
-  .get(protect, restrictTo('admin'), userController.getStaffById);
+  .get(protect, restrictTo('admin'), userController.getStaffById)
+  .put(protect, restrictTo('admin'), userController.updateStaff);
 
 module.exports = router;

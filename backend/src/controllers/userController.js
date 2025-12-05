@@ -515,3 +515,118 @@ exports.getStaffById = async (req, res) => {
     });
   }
 };
+
+exports.updateStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      email,
+      full_name: fullName,
+      staff_code: staffCode
+    } = req.body;
+
+    const userRole = req.user?.role;
+    if (userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ admin mới có quyền cập nhật thông tin nhân viên'
+      });
+    }
+
+    const { validate } = require('uuid');
+    if (!validate(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID nhân viên không hợp lệ'
+      });
+    }
+
+    const { data: existingStaff, error: findErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .eq('role', 'staff')
+      .maybeSingle();
+
+    if (findErr) throw findErr;
+
+    if (!existingStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhân viên'
+      });
+    }
+
+    const updates = {};
+
+    if (email !== undefined && email !== existingStaff.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email không hợp lệ'
+        });
+      }
+      updates.email = email;
+    }
+
+    if (fullName !== undefined && fullName !== existingStaff.full_name) {
+      if (!fullName || fullName.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Họ tên không được để trống'
+        });
+      }
+      updates.full_name = fullName;
+    }
+
+    if (staffCode !== undefined && staffCode !== existingStaff.staff_code) {
+      if (!staffCode || staffCode.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Mã nhân viên không được để trống'
+        });
+      }
+      updates.staff_code = staffCode;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Không có thông tin nào thay đổi',
+        data: existingStaff
+      });
+    }
+
+    const { data: updatedStaff, error: updateErr } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      if (updateErr.code === '23505') {
+        return res.status(409).json({
+          success: false,
+          message: 'Email hoặc mã nhân viên đã tồn tại'
+        });
+      }
+      throw updateErr;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật thông tin nhân viên thành công',
+      data: updatedStaff
+    });
+
+  } catch (error) {
+    console.error('updateStaff error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
