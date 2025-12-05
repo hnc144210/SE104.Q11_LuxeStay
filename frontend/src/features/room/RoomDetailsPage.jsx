@@ -1,108 +1,73 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import {
-  Star,
-  Heart,
-  Share2,
-  Bed,
-  Bath,
-  Users,
-  Wifi,
-  Tv,
-  Wind,
-  Car,
-  Coffee,
-  Flame,
-  PlusCircle,
-  Utensils,
-  Shirt,
-  Sun,
-  ShieldCheck,
-  CigaretteOff,
-} from "lucide-react";
-
-// ------------------------------------------------------------------
-
-// --- 1. CẤU HÌNH ICON MAPPER ---
-const AMENITY_ICONS = {
-  kitchen: <Utensils size={20} />,
-  netflix: <Tv size={20} />,
-  ac: <Wind size={20} />,
-  wifi: <Wifi size={20} />,
-  washer: <Shirt size={20} />,
-  balcony: <Sun size={20} />,
-  parking: <Car size={20} />,
-  pool: <div className="font-bold text-blue-500">POOL</div>,
-  coffee: <Coffee size={20} />,
-  smoke_alarm: <CigaretteOff size={20} />,
-  co_alarm: <ShieldCheck size={20} />,
-  first_aid: <PlusCircle size={20} />,
-  fire_ext: <Flame size={20} />,
-};
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import Navbar from "../../components/layout/Navbar";
+import Footer from "../../components/layout/Footer";
+import { getRoomById } from "./api/roomApi";
 
 const RoomDetailsPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Lấy thông tin ngày tháng từ trang Search (nếu có)
+  const { check_in_date, check_out_date, max_guests } = location.state || {};
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // --- 2. GIẢ LẬP GỌI API ---
   useEffect(() => {
     const fetchRoomDetails = async () => {
-      setLoading(true);
-
       try {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        setLoading(true);
+        // Gọi API Backend lấy dữ liệu thật
+        const response = await getRoomById(id);
 
-        const mockApiResponse = {
-          id: "1",
-          title: "Nha Trang Luxury Resort & Spa",
-          location: "12 Tran Phu, Nha Trang, Khanh Hoa, Vietnam",
-          price: 120,
-          rating: 4.8,
-          reviews: 120,
-          description:
-            "Enjoy a breathtaking view of the ocean from this luxurious suite. Designed for comfort and elegance, our resort offers world-class amenities including a private beach, infinity pool, and 5-star dining experiences.",
-          images: [
-            "https://i.pinimg.com/1200x/c4/5a/1b/c45a1b389964c35302c88fd892b8ecef.jpg",
-            "https://i.pinimg.com/1200x/bc/a0/16/bca01660ec597d6a16e7641b3726eac3.jpg",
-            "https://i.pinimg.com/1200x/a3/8c/7c/a38c7cfd8b9df68c266532dde441e915.jpg",
-            "https://i.pinimg.com/1200x/31/a9/b6/31a9b6d98b741f606e4614b768ea7242.jpg",
-            "https://i.pinimg.com/1200x/38/1b/69/381b6906e650b1d9844f02887b61ff75.jpg",
-            "https://dkdecor.vn/wp-content/uploads/2025/05/spa-thien-nhien-o-da-lat.jpg",
-            "https://dkdecor.vn/wp-content/uploads/2025/05/wmremove-transformed.png",
-          ],
-          host: {
-            name: "LuxeStay",
-            avatar:
-              "https://ui-avatars.com/api/?name=Luxe+Stay&background=0D8ABC&color=fff",
-            superhost: true,
-          },
-          specs: {
-            guests: 6,
-            bedrooms: 3,
-            beds: 3,
-            baths: 3,
-          },
-          amenities: [
-            { code: "kitchen", name: "Kitchen" },
-            { code: "netflix", name: "Television with Netflix" },
-            { code: "ac", name: "Air Conditioner" },
-            { code: "wifi", name: "Free Wireless Internet" },
-            { code: "washer", name: "Washer" },
-            { code: "balcony", name: "Balcony or Patio" },
-          ],
-          safety: [
-            { code: "smoke_alarm", name: "Smoke alarm" },
-            { code: "co_alarm", name: "Carbon monoxide alarm" },
-            { code: "first_aid", name: "First aid kit" },
-            { code: "fire_ext", name: "Fire extinguisher" },
-          ],
-        };
+        if (response.success && response.data) {
+          const apiData = response.data;
 
-        setRoom(mockApiResponse);
-      } catch (error) {
-        console.error("Failed to fetch room details", error);
+          // Transform dữ liệu từ DB thành format UI cần
+          // Lưu ý: Do DB chưa có cột description/image, ta sẽ tự sinh dựa trên loại phòng
+          const formattedRoom = {
+            id: apiData.id,
+            title: `${apiData.room_types.name} - ${apiData.room_number}`,
+            // Giá gốc từ DB
+            price: Number(apiData.room_types.base_price),
+            description:
+              apiData.note ||
+              `Trải nghiệm kỳ nghỉ tuyệt vời tại phòng ${apiData.room_types.name}. Phòng được trang bị đầy đủ tiện nghi, không gian thoáng mát, phù hợp cho ${apiData.room_types.max_guests} người.`,
+            rating: 4.8, // Hardcode vì DB chưa có bảng review
+            reviews: 120,
+            // Hardcode ảnh vì DB chưa có bảng images
+            images: [
+              "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80",
+              "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
+              "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80",
+            ],
+            host: {
+              name: "LuxeStay Staff",
+              avatar: "https://ui-avatars.com/api/?name=Luxe+Stay",
+            },
+            specs: {
+              guests: apiData.room_types.max_guests,
+              bedrooms: 1, // Mặc định
+              beds: Math.ceil(apiData.room_types.max_guests / 2), // Tự tính toán số giường
+              baths: 1,
+            },
+            amenities: [
+              { code: "wifi", name: "Wifi miễn phí" },
+              { code: "ac", name: "Điều hòa nhiệt độ" },
+              { code: "parking", name: "Bãi đỗ xe" },
+            ],
+            safety: [{ code: "fire_ext", name: "Bình chữa cháy" }],
+            status: apiData.status,
+          };
+
+          setRoom(formattedRoom);
+        }
+      } catch (err) {
+        console.error("Lỗi tải phòng:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -111,287 +76,193 @@ const RoomDetailsPage = () => {
     fetchRoomDetails();
   }, [id]);
 
-  // --- 3. LOADING STATE ---
-  if (loading) {
+  const handleReserve = () => {
+    // Chuyển sang trang Booking Confirmation với dữ liệu thật
+    navigate("/booking-confirmation", {
+      state: {
+        room: {
+          id: room.id,
+          name: room.title,
+          price: room.price, // Giá lấy từ DB
+        },
+        check_in_date,
+        check_out_date,
+        max_guests: max_guests || room.specs.guests, // Nếu user chưa chọn khách thì lấy max của phòng
+      },
+    });
+  };
+
+  if (loading)
     return (
-      <div className="bg-white min-h-screen font-sans">
-        <div className="max-w-7xl mx-auto px-4 md:px-20 pt-28 pb-20 animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-8"></div>
-          <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[400px] mb-10">
-            <div className="col-span-2 row-span-2 bg-gray-200 rounded-2xl"></div>
-            <div className="bg-gray-200 rounded-2xl"></div>
-            <div className="bg-gray-200 rounded-2xl"></div>
-            <div className="bg-gray-200 rounded-2xl"></div>
-            <div className="bg-gray-200 rounded-2xl"></div>
-          </div>
-          <div className="grid grid-cols-3 gap-12">
-            <div className="col-span-2 space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-full"></div>
-              <div className="h-4 bg-gray-200 rounded w-full"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-            </div>
-            <div className="col-span-1 h-64 bg-gray-200 rounded-xl"></div>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl text-gray-600">Đang tải thông tin phòng...</div>
+      </div>
+    );
+
+  if (error || !room)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-500">
+          Không tìm thấy phòng hoặc có lỗi xảy ra.
         </div>
       </div>
     );
-  }
-
-  if (!room) return <div className="pt-32 text-center">Room not found</div>;
 
   return (
-    <div className="bg-white min-h-screen font-sans">
-      <div className="max-w-7xl mx-auto px-4 md:px-20 pt-28 pb-20">
-        {/* HEADER */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-serif font-bold text-[#181E4B]">
-            {room.title}
-          </h1>
-          <div className="flex justify-between items-center mt-2 flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Star className="text-orange-500 fill-orange-500" size={16} />
-              <span className="font-bold text-black">{room.rating}</span>
-              <span className="underline cursor-pointer">
-                ({room.reviews} reviews)
-              </span>
-              <span>•</span>
-              <span className="underline cursor-pointer">{room.location}</span>
-            </div>
-            <div className="flex gap-4">
-              <button className="flex items-center gap-2 text-[#181E4B] hover:bg-gray-100 px-3 py-2 rounded-lg transition">
-                <Share2 size={18} /> Share
-              </button>
-              <button className="flex items-center gap-2 text-[#181E4B] hover:bg-gray-100 px-3 py-2 rounded-lg transition">
-                <Heart size={18} /> Save
-              </button>
-            </div>
-          </div>
+    <div className="bg-white min-h-screen font-sans pt-20 px-4 md:px-20 pb-10">
+      <Navbar />
+      {/* 1. Header & Title */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-[#181E4B]">{room.title}</h1>
+        <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
+          <span className="font-bold text-black flex items-center gap-1">
+            ★ {room.rating}
+          </span>
+          <span className="underline">({room.reviews} reviews)</span>
+          <span>•</span>
+          <span>
+            Status: {room.status === "available" ? "available" : "busy"}
+          </span>
         </div>
+      </div>
 
-        {/* GALLERY */}
-        <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[400px] md:h-[500px] rounded-2xl overflow-hidden mb-10 relative">
-          <div className="col-span-2 row-span-2 cursor-pointer hover:opacity-90 transition">
+      {/* 2. Gallery (Hiển thị ảnh) */}
+      <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[400px] md:h-[500px] rounded-2xl overflow-hidden mb-10">
+        <div className="col-span-2 row-span-2 cursor-pointer">
+          <img
+            src={room.images[0]}
+            alt="Main"
+            className="w-full h-full object-cover hover:opacity-95 transition"
+          />
+        </div>
+        <div className="col-span-1 row-span-1">
+          <img
+            src={room.images[1]}
+            alt="Sub 1"
+            className="w-full h-full object-cover hover:opacity-95 transition"
+          />
+        </div>
+        <div className="col-span-1 row-span-1">
+          <img
+            src={room.images[2]}
+            alt="Sub 2"
+            className="w-full h-full object-cover hover:opacity-95 transition"
+          />
+        </div>
+        <div className="col-span-2 row-span-1 bg-gray-100 flex items-center justify-center text-gray-500">
+          Xem thêm ảnh
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mt-8">
+        {/* LEFT COLUMN: Thông tin chi tiết */}
+        <div className="md:col-span-2 space-y-8">
+          {/* Host Info */}
+          <div className="flex justify-between items-center border-b pb-6">
+            <div>
+              <h2 className="text-xl font-bold">
+                Phòng quản lý bởi {room.host.name}
+              </h2>
+              <p className="text-gray-500">
+                {room.specs.guests} khách • {room.specs.bedrooms} phòng ngủ •{" "}
+                {room.specs.beds} giường • {room.specs.baths} phòng tắm
+              </p>
+            </div>
             <img
-              src={room.images[0]}
-              alt="Main"
-              className="w-full h-full object-cover"
+              src={room.host.avatar}
+              alt="Host"
+              className="w-12 h-12 rounded-full"
             />
           </div>
-          {/* Render 4 ảnh nhỏ */}
-          {room.images.slice(1, 5).map((img, idx) => (
-            <div
-              key={idx}
-              className="cursor-pointer hover:opacity-90 transition relative"
-            >
-              <img src={img} className="w-full h-full object-cover" />
-              {idx === 3 && room.images.length > 5 && (
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center hover:bg-black/20 transition">
-                  <span className="text-white font-bold text-lg">
-                    + View All
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
 
-        {/* MAIN CONTENT */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          {/* LEFT COLUMN */}
-          <div className="md:col-span-2 space-y-10">
-            {/* HOST INFO */}
-            <div className="flex justify-between items-center border-b border-gray-100 pb-6">
-              <div>
-                <h2 className="text-xl font-bold text-[#181E4B]">
-                  Entire villa hosted by {room.host.name}
-                </h2>
-                <p className="text-gray-500">
-                  {room.specs.guests} guests • {room.specs.bedrooms} bedrooms •{" "}
-                  {room.specs.beds} beds • {room.specs.baths} baths
-                </p>
-              </div>
-              <img
-                src={room.host.avatar}
-                alt="Host"
-                className="w-14 h-14 rounded-full border bg-gray-50 object-contain p-1"
-              />
-            </div>
-
-            {/* ICONS SPECS */}
-            <div className="flex gap-6 border-b border-gray-100 pb-6 overflow-x-auto">
-              <div className="flex flex-col items-center gap-2 bg-gray-50 p-4 rounded-xl min-w-[100px]">
-                <Bed size={24} className="text-[#181E4B]" />
-                <span className="text-xs font-bold text-gray-500">
-                  {room.specs.bedrooms} Bedrooms
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-2 bg-gray-50 p-4 rounded-xl min-w-[100px]">
-                <Bath size={24} className="text-[#181E4B]" />
-                <span className="text-xs font-bold text-gray-500">
-                  {room.specs.baths} Baths
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-2 bg-gray-50 p-4 rounded-xl min-w-[100px]">
-                <Users size={24} className="text-[#181E4B]" />
-                <span className="text-xs font-bold text-gray-500">
-                  {room.specs.guests} Guests
-                </span>
-              </div>
-            </div>
-
-            {/* DESCRIPTION */}
-            <div className="border-b border-gray-100 pb-6">
-              <h3 className="text-xl font-bold text-[#181E4B] mb-4">
-                About this place
-              </h3>
-              <p className="text-gray-500 leading-relaxed whitespace-pre-line">
-                {room.description}
-              </p>
-            </div>
-
-            {/* AMENITIES */}
-            <div className="border-b border-gray-100 pb-6">
-              <h3 className="text-xl font-bold text-[#181E4B] mb-6">
-                Offered Amenities
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {room.amenities.map((item) => (
-                  <div
-                    key={item.code}
-                    className="flex items-center gap-3 text-gray-500"
-                  >
-                    <span className="text-gray-600">
-                      {AMENITY_ICONS[item.code] || <Star size={20} />}
-                    </span>
-                    <span>{item.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* SAFETY */}
-            <div className="border-b border-gray-100 pb-6">
-              <h3 className="text-xl font-bold text-[#181E4B] mb-6">
-                Safety and Hygiene
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {room.safety.map((item) => (
-                  <div
-                    key={item.code}
-                    className="flex items-center gap-3 text-gray-500"
-                  >
-                    <span className="text-gray-600">
-                      {AMENITY_ICONS[item.code] || <ShieldCheck size={20} />}
-                    </span>
-                    <span>{item.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* REVIEWS */}
-            <div>
-              <h3 className="text-xl font-bold text-[#181E4B] mb-6 flex items-center gap-2">
-                <Star className="text-orange-500 fill-orange-500" size={24} />{" "}
-                {room.rating} • {room.reviews} reviews
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-300"></div>
-                    <div>
-                      <h4 className="font-bold text-[#181E4B]">
-                        John Doberman
-                      </h4>
-                      <p className="text-xs text-gray-500">Nov 2024</p>
-                    </div>
-                  </div>
-                  <p className="text-gray-500 text-sm italic">
-                    "Absolutely loved my stay! Everything was perfect."
-                  </p>
-                </div>
-              </div>
-            </div>
+          {/* Description */}
+          <div className="border-b pb-6">
+            <h3 className="text-xl font-bold mb-4">Mô tả</h3>
+            <p className="text-gray-600 leading-relaxed">{room.description}</p>
           </div>
 
-          {/* RIGHT COLUMN: BOOKING CARD */}
-          <div className="relative">
-            <div className="sticky top-28 bg-white border border-gray-200 shadow-xl rounded-xl p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <span className="text-2xl font-bold text-[#181E4B]">
-                    ${room.price}
-                  </span>
-                  <span className="text-gray-500"> / night</span>
+          {/* Amenities */}
+          <div>
+            <h3 className="text-xl font-bold mb-4">Tiện nghi</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {room.amenities.map((am, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 text-gray-600"
+                >
+                  ✓ {am.name}
                 </div>
-                <div className="flex items-center gap-1 text-sm">
-                  <Star className="text-orange-500 fill-orange-500" size={14} />
-                  <span className="font-bold">{room.rating}</span>
-                  <span className="text-gray-500 underline">
-                    ({room.reviews})
-                  </span>
-                </div>
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-              <div className="border border-gray-400 rounded-lg overflow-hidden mb-4">
-                <div className="grid grid-cols-2 border-b border-gray-400">
-                  <div className="p-3 border-r border-gray-400 cursor-pointer hover:bg-gray-50">
-                    <label className="block text-[10px] font-bold uppercase text-[#181E4B]">
-                      Check-in
-                    </label>
-                    <span className="text-sm text-gray-500">Add date</span>
-                  </div>
-                  <div className="p-3 cursor-pointer hover:bg-gray-50">
-                    <label className="block text-[10px] font-bold uppercase text-[#181E4B]">
-                      Check-out
-                    </label>
-                    <span className="text-sm text-gray-500">Add date</span>
-                  </div>
-                </div>
-                <div className="p-3 cursor-pointer hover:bg-gray-50">
-                  <label className="block text-[10px] font-bold uppercase text-[#181E4B]">
-                    Guests
-                  </label>
-                  <span className="text-sm text-gray-500">
-                    {room.specs.guests} guests max
-                  </span>
-                </div>
+        {/* RIGHT COLUMN: BOOKING CARD */}
+        <div className="relative">
+          <div className="sticky top-28 bg-white border shadow-xl rounded-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <span className="text-2xl font-bold text-[#181E4B]">
+                  {room.price?.toLocaleString()} VND
+                </span>
+                <span className="text-gray-500"> / đêm</span>
               </div>
+            </div>
 
-              <button className="w-full bg-[#DF6951] text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition mb-4 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                Reserve Now
+            <div className="border border-gray-300 rounded-lg p-3 mb-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-semibold">Nhận phòng:</span>
+                <span className={!check_in_date ? "text-red-500" : ""}>
+                  {check_in_date || "Chưa chọn"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="font-semibold">Trả phòng:</span>
+                <span className={!check_out_date ? "text-red-500" : ""}>
+                  {check_out_date || "Chưa chọn"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="font-semibold">Khách:</span>
+                <span>{max_guests || room.specs.guests} người</span>
+              </div>
+            </div>
+
+            {/* Nếu user vào thẳng link mà chưa có ngày, yêu cầu quay lại tìm kiếm */}
+            {(!check_in_date || !check_out_date) && (
+              <div className="mb-4 text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                Vui lòng chọn ngày để đặt phòng.
+              </div>
+            )}
+
+            <button
+              onClick={handleReserve}
+              disabled={
+                !check_in_date || !check_out_date || room.status !== "available"
+              }
+              className="w-full bg-[#DF6951] text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {room.status === "available"
+                ? "Đặt ngay"
+                : "Phòng không khả dụng"}
+            </button>
+
+            {!check_in_date && (
+              <button
+                onClick={() => navigate("/")}
+                className="w-full mt-3 text-blue-600 text-sm hover:underline"
+              >
+                Quay lại tìm kiếm
               </button>
+            )}
 
-              <p className="text-center text-xs text-gray-500 mb-6">
-                You won't be charged yet
-              </p>
-
-              <div className="space-y-3 text-gray-500 text-sm">
-                <div className="flex justify-between">
-                  <span className="underline">${room.price} x 5 nights</span>
-                  <span>${room.price * 5}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="underline">Cleaning fee</span>
-                  <span>$50</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="underline">Service fee</span>
-                  <span>$80</span>
-                </div>
-              </div>
-
-              <hr className="my-4 border-gray-200" />
-
-              <div className="flex justify-between font-bold text-lg text-[#181E4B]">
-                <span>Total</span>
-                <span>${room.price * 5 + 50 + 80}</span>
-              </div>
+            <div className="mt-4 text-center text-xs text-gray-500">
+              Bạn chưa bị trừ tiền ở bước này.
             </div>
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

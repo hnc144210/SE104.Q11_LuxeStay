@@ -408,3 +408,4 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
+//auth/AuthPage.jsx

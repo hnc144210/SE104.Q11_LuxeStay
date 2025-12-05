@@ -1,39 +1,52 @@
+// src/App.jsx
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 
-// 1. Import AuthProvider từ file Context bạn vừa tạo
-import { AuthProvider } from "./features/context/AuthContext.jsx";
-// 2. Import các trang (Features)
+// Context
+import { AuthProvider } from "./features/context/AuthContext";
 
-import HomePage from "./features/home/HomePage.jsx";
-// Lưu ý: Nếu AuthPage export default thì import như dòng dưới, nếu export { AuthPage } thì giữ nguyên như cũ của bạn
-import AuthPage from "./features/auth/AuthPage.jsx";
-import Navbar from "./components/layout/Navbar.jsx";
-import { Footer } from "./components/layout/Footer.jsx";
-import SearchResultsPage from "./features/room/SearchResultsPage"; // Import trang mới
-import RoomDetailsPage from "./features/room/RoomDetailsPage.jsx";
-import BookingConfirmationPage from "./features/booking/BookingConfirmationPage.jsx";
-import BookingSuccessPage from "./features/booking/BookingSuccessPage.jsx";
+// Public Pages
+import HomePage from "./features/home/HomePage";
+import AuthPage from "./features/auth/AuthPage";
+import SearchResultsPage from "./features/room/SearchResultsPage";
+import RoomDetailsPage from "./features/room/RoomDetailsPage";
+
+// Customer Pages (protected by logic inside)
+import BookingConfirmationPage from "./features/booking/BookingConfirmationPage";
+import BookingSuccessPage from "./features/booking/BookingSuccessPage";
+import MyBookingsPage from "./features/booking/MyBookingPage";
+
+// Admin/Staff Pages (protected by logic inside)
+import BookingManagementPage from "./features/admin/BookingManagementPage";
+import CustomerManagementPage from "./features/admin/CustomerManagementPage";
+
 function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/auth" element={<AuthPage />} />
+      <div className="flex flex-col min-h-screen">
+        <Routes>
+          {/* === PUBLIC ROUTES === */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/search-results" element={<SearchResultsPage />} />
+          <Route path="/room-details/:id" element={<RoomDetailsPage />} />
 
-        {/* 👇 THÊM DÒNG NÀY */}
-        <Route path="/search-results" element={<SearchResultsPage />} />
+          {/* === CUSTOMER ROUTES === */}
+          <Route
+            path="/booking-confirmation"
+            element={<BookingConfirmationPage />}
+          />
+          <Route path="/booking-success/:id" element={<BookingSuccessPage />} />
+          <Route path="/my-bookings" element={<MyBookingsPage />} />
 
-        <Route path="/room-details" element={<RoomDetailsPage />} />
-        <Route
-          path="/booking-confirmation"
-          element={<BookingConfirmationPage />}
-        />
-        <Route path="/booking-success" element={<BookingSuccessPage />} />
-      </Routes>
+          {/* === ADMIN/STAFF ROUTES === */}
+          <Route path="/admin/bookings" element={<BookingManagementPage />} />
+          <Route path="/admin/customers" element={<CustomerManagementPage />} />
+        </Routes>
+      </div>
     </AuthProvider>
   );
 }
 
 export default App;
-//frontend/src/App.jsx
+//App.jsx

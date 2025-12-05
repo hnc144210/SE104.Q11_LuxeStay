@@ -1,329 +1,141 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, CreditCard, Lock, ShieldCheck, Star } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Navbar from "../../components/layout/Navbar";
+import { createBooking } from "./api/bookingApi"; // Đảm bảo import đúng
 
 const BookingConfirmationPage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
 
-  const bookingData = {
-    roomTitle: "Nha Trang Luxury Resort & Spa",
-    image:
-      "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=600&auto=format&fit=crop",
-    rating: 4.8,
-    reviews: 120,
-    pricePerNight: 120,
-    checkIn: "Dec 12, 2025",
-    checkOut: "Dec 17, 2025",
-    nights: 5,
-    guests: 2,
-    cleaningFee: 50,
-    serviceFee: 80,
+  const bookingData = location.state || {};
+  const { room, check_in_date, check_out_date, max_guests } = bookingData;
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [numGuests, setNumGuests] = useState(1);
+  const [note, setNote] = useState("");
+
+  // ... (Giữ nguyên các logic tính toán nights, total ...)
+  const start = new Date(check_in_date);
+  const end = new Date(check_out_date);
+  const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+  const total = nights * room?.price;
+
+  const handleConfirmBooking = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 1. Chuẩn bị payload
+      const payload = {
+        room_id: room.id,
+        check_in_date,
+        check_out_date,
+        num_guests: parseInt(numGuests),
+        deposit_amount: 0, // Hoặc tính 30% total
+        note: note,
+      };
+
+      // 2. Gọi API tạo Booking (Backend sẽ tự update status phòng)
+      const response = await createBooking(payload);
+
+      if (response.success) {
+        // 3. Thành công -> Chuyển sang trang Success
+        navigate("/booking-success", {
+          state: {
+            booking: response.data,
+            roomInfo: room,
+            message: "Đặt phòng thành công! Phòng đã được khóa cho bạn.",
+          },
+        });
+      }
+    } catch (err) {
+      console.error("Booking Error:", err);
+      setError(err.message || "Đặt phòng thất bại. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const totalPrice =
-    bookingData.pricePerNight * bookingData.nights +
-    bookingData.cleaningFee +
-    bookingData.serviceFee;
-
-  // Form State
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    paymentMethod: "card", // 'card' | 'paypal'
-  });
-
-  const handleConfirm = (e) => {
-    e.preventDefault();
-    // Logic gọi API đặt phòng sẽ ở đây
-    alert("Booking Confirmed! Thank you for choosing LuxeStay.");
-    navigate("/"); // Quay về trang chủ
-  };
+  if (!room) return <div>Không có thông tin đặt phòng</div>;
 
   return (
-    <div className="bg-white min-h-screen font-sans">
-      <div className="max-w-7xl mx-auto px-4 md:px-20 pt-28 pb-20">
-        {/* Header Navigation */}
-        <div className="mb-8 flex items-center gap-2 text-[#181E4B]">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 hover:bg-gray-100 rounded-full transition"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <h1 className="text-3xl font-serif font-bold">Request to book</h1>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8 pt-24 max-w-4xl">
+        <h1 className="text-2xl font-bold mb-6">Xác nhận đặt phòng</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-          {/* --- LEFT COLUMN: GUEST INFO & PAYMENT --- */}
-          <div className="lg:col-span-2 space-y-10">
-            {/* 1. Your Trip Summary (Editable) */}
-            <section className="border-b border-gray-200 pb-8">
-              <h2 className="text-xl font-bold text-[#181E4B] mb-4">
-                Your trip
-              </h2>
-              <div className="flex justify-between items-center mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Cột trái: Form nhập thông tin thêm */}
+          <div className="md:col-span-2 space-y-4">
+            <div className="bg-white p-6 rounded shadow">
+              <h3 className="font-bold mb-4">Thông tin chuyến đi</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <h3 className="font-bold text-gray-800">Dates</h3>
-                  <p className="text-gray-600">
-                    {bookingData.checkIn} – {bookingData.checkOut}
-                  </p>
-                </div>
-                <button className="font-bold underline text-gray-800 hover:text-[#DF6951]">
-                  Edit
-                </button>
-              </div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-bold text-gray-800">Guests</h3>
-                  <p className="text-gray-600">{bookingData.guests} guests</p>
-                </div>
-                <button className="font-bold underline text-gray-800 hover:text-[#DF6951]">
-                  Edit
-                </button>
-              </div>
-            </section>
-
-            {/* 2. Contact Information Form */}
-            <form
-              id="booking-form"
-              onSubmit={handleConfirm}
-              className="border-b border-gray-200 pb-8"
-            >
-              <h2 className="text-xl font-bold text-[#181E4B] mb-4">
-                Contact Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                    placeholder="John"
-                  />
+                  <p className="text-gray-500">Nhận phòng</p>
+                  <p className="font-medium">{check_in_date}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                    placeholder="Doe"
-                  />
-                </div>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                  placeholder="john@example.com"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  We'll email you the booking confirmation.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  required
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                  placeholder="+84 90 123 4567"
-                />
-              </div>
-            </form>
-
-            {/* 3. Payment Method */}
-            <section className="border-b border-gray-200 pb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[#181E4B]">Pay with</h2>
-                <div className="flex gap-2">
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg"
-                    className="h-6"
-                    alt="Visa"
-                  />
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg"
-                    className="h-6"
-                    alt="Mastercard"
-                  />
+                  <p className="text-gray-500">Trả phòng</p>
+                  <p className="font-medium">{check_out_date}</p>
                 </div>
               </div>
 
-              {/* Payment Tabs */}
-              <div className="flex gap-4 mb-6">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({ ...formData, paymentMethod: "card" })
-                  }
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg border transition ${
-                    formData.paymentMethod === "card"
-                      ? "border-[#DF6951] bg-orange-50 text-[#DF6951] font-bold"
-                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <CreditCard size={20} /> Credit Card
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData({ ...formData, paymentMethod: "paypal" })
-                  }
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg border transition ${
-                    formData.paymentMethod === "paypal"
-                      ? "border-blue-500 bg-blue-50 text-blue-600 font-bold"
-                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="italic font-serif">PayPal</span>
-                </button>
-              </div>
-
-              {/* Credit Card Form (Conditional) */}
-              {formData.paymentMethod === "card" && (
-                <div className="space-y-4 animate-fadeIn">
-                  <div className="relative">
-                    <CreditCard
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={20}
-                    />
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-lg p-3 pl-10 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                      placeholder="Card number"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                      placeholder="Expiration (MM/YY)"
-                    />
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#DF6951]"
-                      placeholder="CVV"
-                    />
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* 4. Cancellation Policy */}
-            <section className="pb-8">
-              <h2 className="text-xl font-bold text-[#181E4B] mb-2">
-                Cancellation policy
-              </h2>
-              <p className="text-gray-600 mb-2">
-                <span className="font-bold">
-                  Free cancellation before Dec 10.
-                </span>{" "}
-                Cancel before check-in on Dec 12 for a partial refund.
-              </p>
-              <a
-                href="#"
-                className="underline font-bold text-gray-800 hover:text-[#DF6951]"
+              <label className="block mb-2 text-sm font-medium">
+                Số khách:
+              </label>
+              <select
+                value={numGuests}
+                onChange={(e) => setNumGuests(e.target.value)}
+                className="w-full border p-2 rounded mb-4"
               >
-                Show more
-              </a>
-            </section>
+                {[...Array(max_guests)].map((_, i) => (
+                  <option key={i} value={i + 1}>
+                    {i + 1} khách
+                  </option>
+                ))}
+              </select>
 
-            <button
-              type="submit"
-              form="booking-form"
-              className="w-full md:w-auto bg-[#DF6951] text-white font-bold text-lg py-4 px-10 rounded-xl hover:bg-orange-600 transition shadow-lg transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-            >
-              <Lock size={20} /> Confirm and Pay
-            </button>
+              <label className="block mb-2 text-sm font-medium">
+                Ghi chú đặc biệt:
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full border p-2 rounded h-24"
+                placeholder="Yêu cầu thêm..."
+              />
+            </div>
           </div>
 
-          {/* --- RIGHT COLUMN: ORDER SUMMARY (STICKY) --- */}
-          <div className="relative lg:col-span-1">
-            <div className="sticky top-28 border border-gray-200 rounded-2xl p-6 shadow-xl bg-white">
-              {/* Room Snippet */}
-              <div className="flex gap-4 mb-6 border-b border-gray-100 pb-6">
-                <img
-                  src={bookingData.image}
-                  alt="Room"
-                  className="w-24 h-24 object-cover rounded-xl"
-                />
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Entire villa</p>
-                  <h3 className="font-bold text-[#181E4B] text-sm leading-tight mb-1">
-                    {bookingData.roomTitle}
-                  </h3>
-                  <div className="flex items-center gap-1 text-xs">
-                    <Star
-                      className="text-orange-500 fill-orange-500"
-                      size={12}
-                    />
-                    <span className="font-bold">{bookingData.rating}</span>
-                    <span className="text-gray-500">
-                      ({bookingData.reviews} reviews)
-                    </span>
-                  </div>
+          {/* Cột phải: Tổng tiền & Nút xác nhận */}
+          <div className="md:col-span-1">
+            <div className="bg-white p-6 rounded shadow sticky top-24">
+              <h3 className="font-bold text-lg mb-2">{room.name}</h3>
+              <div className="border-t pt-4 mt-4 space-y-2">
+                <div className="flex justify-between">
+                  <span>
+                    {room.price?.toLocaleString()} x {nights} đêm
+                  </span>
+                  <span>{total?.toLocaleString()} đ</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg text-blue-600 pt-2 border-t">
+                  <span>Tổng cộng</span>
+                  <span>{total?.toLocaleString()} đ</span>
                 </div>
               </div>
 
-              {/* Price Protection */}
-              <div className="border-b border-gray-100 pb-6 mb-6">
-                <h3 className="text-lg font-bold text-[#181E4B] mb-4">
-                  Price details
-                </h3>
-                <div className="space-y-3 text-gray-600 text-sm">
-                  <div className="flex justify-between">
-                    <span>
-                      ${bookingData.pricePerNight} x {bookingData.nights} nights
-                    </span>
-                    <span>
-                      ${bookingData.pricePerNight * bookingData.nights}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cleaning fee</span>
-                    <span>${bookingData.cleaningFee}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>LuxeStay service fee</span>
-                    <span>${bookingData.serviceFee}</span>
-                  </div>
-                </div>
-              </div>
+              {error && (
+                <div className="text-red-500 text-sm mt-4">{error}</div>
+              )}
 
-              <div className="flex justify-between items-center font-bold text-xl text-[#181E4B] mb-6">
-                <span>Total (USD)</span>
-                <span>${totalPrice}</span>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="bg-gray-50 p-4 rounded-xl flex gap-3 items-start">
-                <ShieldCheck
-                  className="text-green-600 shrink-0 mt-1"
-                  size={20}
-                />
-                <div>
-                  <p className="font-bold text-sm text-gray-800">
-                    Secure Booking
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Your information is protected by 256-bit SSL encryption.
-                  </p>
-                </div>
-              </div>
+              <button
+                onClick={handleConfirmBooking}
+                disabled={loading}
+                className="w-full mt-6 bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 disabled:bg-gray-400"
+              >
+                {loading ? "Đang xử lý..." : "Xác nhận đặt phòng"}
+              </button>
             </div>
           </div>
         </div>

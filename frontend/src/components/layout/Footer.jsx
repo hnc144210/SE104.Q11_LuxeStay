@@ -120,3 +120,4 @@ export const Footer = () => {
   );
 };
 export default Footer;
+//layout/Footer.jsx

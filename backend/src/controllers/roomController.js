@@ -1,175 +1,244 @@
-﻿const { createClient } = require('@supabase/supabase-js');
+﻿const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
-
-
 exports.checkAvailability = async (req, res) => {
   try {
-    const {
+    const { check_in_date, check_out_date, room_type_id, max_guests } =
+      req.query;
+
+    console.log("🔍 Đang kiểm tra phòng:", {
       check_in_date,
       check_out_date,
       room_type_id,
-      max_guests
-    } = req.query;
+    });
 
-    // Validation ngày
+    // --- 1. VALIDATION NGÀY THÁNG (FIX LỖI CRASH DATE) ---
     if (!check_in_date || !check_out_date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng cung cấp ngày check-in và check-out'
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu ngày check-in/out" });
     }
 
-    const checkIn = new Date(check_in_date);
-    const checkOut = new Date(check_out_date);
+    const reqCheckIn = new Date(check_in_date);
+    const reqCheckOut = new Date(check_out_date);
+
+    // Kiểm tra xem ngày có hợp lệ không (Tránh NaN)
+    if (isNaN(reqCheckIn.getTime()) || isNaN(reqCheckOut.getTime())) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Định dạng ngày không hợp lệ" });
+    }
+
+    // Đặt giờ về 0 để so sánh ngày chuẩn xác
+    reqCheckIn.setHours(0, 0, 0, 0);
+    reqCheckOut.setHours(0, 0, 0, 0);
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Kiểm tra ngày hợp lệ
-    if (checkIn < today) {
+    if (reqCheckIn < today) {
       return res.status(400).json({
         success: false,
-        message: 'Ngày check-in không thể là ngày trong quá khứ'
+        message: "Ngày check-in không được ở quá khứ",
       });
     }
-
-    if (checkOut <= checkIn) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ngày check-out phải sau ngày check-in'
-      });
+    if (reqCheckOut <= reqCheckIn) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Ngày check-out phải sau check-in" });
     }
 
-    // Query tất cả phòng
+    // --- 2. LẤY DỮ LIỆU TỪ SUPABASE ---
     let roomsQuery = supabase
-      .from('rooms')
-      .select(`
-        *,
+      .from("rooms")
+      .select(
+        `
+        id, 
+        room_number, 
+        status, 
+        room_type_id,
+        room_types (
+          id, name, base_price, max_guests
+        )
+      `
+      )
+      .neq("status", "maintenance");
+
+    if (room_type_id) {
+      roomsQuery = roomsQuery.eq("room_type_id", room_type_id);
+    }
+
+    const { data: allRooms, error: roomsError } = await roomsQuery;
+
+    if (roomsError) {
+      console.error("Supabase Error (Rooms):", roomsError);
+      throw new Error(roomsError.message);
+    }
+
+    // --- 3. KIỂM TRA BOOKING & RENTAL ---
+    const { data: potentialBookings, error: bookingErr } = await supabase
+      .from("bookings")
+      .select("room_id, check_in_date, check_out_date")
+      .in("status", ["pending", "confirmed"])
+      .gte("check_out_date", check_in_date); // Lấy booking kết thúc SAU ngày khách định đến
+
+    if (bookingErr) throw new Error(bookingErr.message);
+
+    const { data: activeRentals, error: rentalErr } = await supabase
+      .from("rentals")
+      .select("room_id, start_date, end_date")
+      .eq("status", "active");
+
+    if (rentalErr) throw new Error(rentalErr.message);
+
+    // --- 4. XỬ LÝ LOGIC TRÙNG LỊCH ---
+    const busyRoomIds = new Set();
+
+    // Check Bookings
+    if (potentialBookings) {
+      potentialBookings.forEach((b) => {
+        const bCheckIn = new Date(b.check_in_date);
+        const bCheckOut = new Date(b.check_out_date);
+        bCheckIn.setHours(0, 0, 0, 0);
+        bCheckOut.setHours(0, 0, 0, 0);
+
+        // Logic trùng: (Start A < End B) && (End A > Start B)
+        if (bCheckIn < reqCheckOut && bCheckOut > reqCheckIn) {
+          busyRoomIds.add(b.room_id);
+        }
+      });
+    }
+
+    // Check Rentals
+    if (activeRentals) {
+      activeRentals.forEach((r) => {
+        const rStart = new Date(r.start_date);
+        rStart.setHours(0, 0, 0, 0);
+
+        if (!r.end_date) {
+          // Nếu không có ngày kết thúc (đang ở vô thời hạn) -> Bận
+          busyRoomIds.add(r.room_id);
+        } else {
+          const rEnd = new Date(r.end_date);
+          rEnd.setHours(0, 0, 0, 0);
+          if (rStart < reqCheckOut && rEnd > reqCheckIn) {
+            busyRoomIds.add(r.room_id);
+          }
+        }
+      });
+    }
+
+    // --- 5. LỌC VÀ FORMAT DỮ LIỆU (FIX LỖI NULL POINTER) ---
+    // Lọc phòng trống và lọc theo số khách
+    let availableRooms = allRooms.filter((room) => {
+      if (busyRoomIds.has(room.id)) return false;
+
+      // Kiểm tra an toàn: Nếu room_types bị null (do lỗi join), bỏ qua phòng này
+      if (!room.room_types) return false;
+
+      if (max_guests && room.room_types.max_guests < parseInt(max_guests)) {
+        return false;
+      }
+      return true;
+    });
+
+    // Tính số đêm
+    const timeDiff = reqCheckOut.getTime() - reqCheckIn.getTime();
+    const nights = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    const finalNights = nights > 0 ? nights : 1;
+
+    // Map dữ liệu trả về (Dùng Optional Chaining ?. để an toàn)
+    const formattedRooms = availableRooms.map((room) => ({
+      room_id: room.id,
+      room_number: room.room_number,
+      room_type: room.room_types, // Đã check !null ở filter trên
+      pricing: {
+        base_price: Number(room.room_types?.base_price || 0),
+        nights: finalNights,
+        total_price: Number(room.room_types?.base_price || 0) * finalNights,
+        currency: "VND",
+      },
+      status: room.status,
+    }));
+
+    // Group theo loại phòng
+    const groupedByType = formattedRooms.reduce((acc, room) => {
+      const typeId = room.room_type.id;
+      if (!acc[typeId]) {
+        acc[typeId] = { room_type: room.room_type, count: 0, rooms: [] };
+      }
+      acc[typeId].count++;
+      acc[typeId].rooms.push(room);
+      return acc;
+    }, {});
+
+    return res.status(200).json({
+      success: true,
+      message: "Lấy danh sách phòng trống thành công",
+      data: {
+        search_criteria: {
+          check_in_date,
+          check_out_date,
+          nights: finalNights,
+          max_guests,
+        },
+        all_available_rooms: formattedRooms,
+        rooms_by_type: Object.values(groupedByType),
+      },
+    });
+  } catch (error) {
+    // Log lỗi chi tiết ra terminal để debug
+    console.error(" API Error [checkAvailability]:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi kiểm tra phòng trống",
+      error: error.message || "Unknown error",
+    });
+  }
+};
+exports.getRoomById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: room, error } = await supabase
+      .from("rooms")
+      .select(
+        `
+        id,
+        room_number,
+        status,
+        note,
         room_types (
           id,
           name,
           base_price,
           max_guests
         )
-      `)
-      .eq('status', 'available');
+      `
+      )
+      .eq("id", id)
+      .single();
 
-    // Lọc theo loại phòng nếu có
-    if (room_type_id) {
-      roomsQuery = roomsQuery.eq('room_type_id', room_type_id);
+    if (error || !room) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy phòng",
+      });
     }
 
-    const { data: allRooms, error: roomsError } = await roomsQuery;
-
-    if (roomsError) {
-      throw roomsError;
-    }
-
-    // Lấy danh sách booking trong khoảng thời gian 
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('room_id, check_in_date, check_out_date')
-      .in('status', ['pending', 'confirmed'])
-      .or(`and(check_in_date.lte.${check_out_date},check_out_date.gte.${check_in_date})`);
-
-    if (bookingsError) {
-      throw bookingsError;
-    }
-
-    // Lấy danh sách rentals đang active trong khoảng thời gian
-    const { data: rentals, error: rentalsError } = await supabase
-      .from('rentals')
-      .select('room_id, start_date, end_date')
-      .eq('status', 'active')
-      .or(`and(start_date.lte.${check_out_date},end_date.gte.${check_in_date})`);
-
-    if (rentalsError) {
-      throw rentalsError;
-    }
-
-    // Tạo Set các room_id đã được book hoặc rent
-    const bookedRoomIds = new Set(bookings.map(b => b.room_id));
-    rentals.forEach(r => bookedRoomIds.add(r.room_id));
-
-    // Lọc phòng trống
-    let availableRooms = allRooms.filter(room => !bookedRoomIds.has(room.id));
-
-    // Lọc theo số khách nếu có
-    if (max_guests) {
-      availableRooms = availableRooms.filter(
-        room => room.room_types.max_guests >= parseInt(max_guests)
-      );
-    }
-
-    // Tính số ngày thuê
-    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-
-    // Format kết quả
-    const formattedRooms = availableRooms.map(room => {
-      const basePrice = room.room_types.base_price;
-      const totalPrice = basePrice * nights;
-
-      return {
-        room_id: room.id,
-        room_number: room.room_number,
-        room_type: {
-          id: room.room_types.id,
-          name: room.room_types.name,
-          max_guests: room.room_types.max_guests
-        },
-        pricing: {
-          base_price: basePrice,
-          nights: nights,
-          total_price: totalPrice,
-          currency: 'VND'
-        },
-        status: room.status
-      };
-    });
-
-    // Nhóm theo loại phòng
-    const groupedByType = formattedRooms.reduce((acc, room) => {
-      const typeId = room.room_type.id;
-      if (!acc[typeId]) {
-        acc[typeId] = {
-          room_type: room.room_type,
-          available_count: 0,
-          rooms: []
-        };
-      }
-      acc[typeId].available_count++;
-      acc[typeId].rooms.push(room);
-      return acc;
-    }, {});
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: 'Lấy danh sách phòng trống thành công',
-      data: {
-        search_criteria: {
-          check_in_date,
-          check_out_date,
-          nights,
-          room_type_id: room_type_id || 'all',
-          max_guests: max_guests || 'any'
-        },
-        summary: {
-          total_available: formattedRooms.length,
-          room_types_available: Object.keys(groupedByType).length
-        },
-        rooms_by_type: Object.values(groupedByType),
-        all_available_rooms: formattedRooms
-      }
+      data: room,
     });
-
   } catch (error) {
-    console.error('Room availability error:', error);
-    res.status(500).json({
+    console.error("Get room detail error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Lỗi server khi kiểm tra phòng trống',
-      error: error.message
+      message: "Lỗi server",
     });
   }
 };
+//controllers/roomController.js
