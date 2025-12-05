@@ -14,14 +14,14 @@ async function seedAdmin() {
   const full_name = 'System Administrator';
 
   try {
-    console.log('🔍 Đang kiểm tra admin cũ...');
+    console.log('Đang kiểm tra admin cũ...');
     const { data: oldProfiles } = await supabase
       .from('profiles')
       .select('id, full_name')
       .eq('role', 'admin');
 
     if (oldProfiles && oldProfiles.length > 0) {
-      console.log(`⚠️  Tìm thấy ${oldProfiles.length} admin cũ, đang xóa...`);
+      console.log(`Tìm thấy ${oldProfiles.length} admin cũ, đang xóa...`);
       for (const profile of oldProfiles) {
         await supabase.from('profiles').delete().eq('id', profile.id);
         try {
@@ -32,18 +32,18 @@ async function seedAdmin() {
       console.log('Đã xóa admin cũ\n');
     }
 
-    console.log('🔍 Đang kiểm tra user với email admin...');
+    console.log('Đang kiểm tra user với email admin...');
     const { data: { users } } = await supabase.auth.admin.listUsers();
     const existingUser = users.find(u => u.email === ADMIN_EMAIL);
     
     if (existingUser) {
-      console.log('⚠️  Tìm thấy user cũ, đang xóa...');
+      console.log('Tìm thấy user cũ, đang xóa...');
       await supabase.from('profiles').delete().eq('id', existingUser.id);
       await supabase.auth.admin.deleteUser(existingUser.id);
       console.log('Đã xóa user cũ\n');
     }
 
-    console.log('📝 Đang tạo user mới...');
+    console.log('Đang tạo user mới...');
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email,
       password: password,
@@ -76,7 +76,7 @@ async function seedAdmin() {
       if (updateError) throw new Error(`Lỗi update: ${updateError.message}`);
       console.log('Đã cập nhật thành admin!');
     } else {
-      console.log('📝 Profile chưa có, đang tạo mới...');
+      console.log('Profile chưa có, đang tạo mới...');
       const { error: insertError } = await supabase
         .from('profiles')
         .insert({ id: userId, full_name: full_name, role: 'admin' });
