@@ -1,5 +1,11 @@
 import React from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import {
+  Outlet,
+  NavLink,
+  useNavigate,
+  useLocation,
+  Link,
+} from "react-router-dom";
 import {
   LayoutDashboard,
   BedDouble,
@@ -9,9 +15,10 @@ import {
   LogOut,
   Bell,
   Search,
+  UserCog, // <--- 1. Import thêm icon này cho Staff
 } from "lucide-react";
 import { useAuthContext } from "../../features/context/AuthContext";
-import { Link } from "react-router-dom";
+
 const AdminLayout = () => {
   const { logout } = useAuthContext();
   const navigate = useNavigate();
@@ -22,10 +29,15 @@ const AdminLayout = () => {
     navigate("/auth");
   };
 
+  // --- 2. CẬP NHẬT MENU SIDEBAR ---
   const navItems = [
     { icon: LayoutDashboard, label: "Tổng quan", path: "/admin/dashboard" },
     { icon: BedDouble, label: "Quản lý Phòng", path: "/admin/rooms" },
     { icon: CalendarCheck, label: "Quản lý Booking", path: "/admin/bookings" },
+
+    // Thêm mục Nhân viên vào đây (Path khớp với App.js)
+    { icon: UserCog, label: "Nhân viên", path: "/admin/staffs" },
+
     { icon: Users, label: "Khách hàng", path: "/admin/customers" },
     { icon: Settings, label: "Cài đặt", path: "/admin/settings" },
   ];
@@ -72,7 +84,6 @@ const AdminLayout = () => {
                 }`
               }
             >
-              {/* --- PHẦN SỬA LỖI Ở ĐÂY: Dùng function để lấy isActive --- */}
               {({ isActive }) => (
                 <>
                   <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />

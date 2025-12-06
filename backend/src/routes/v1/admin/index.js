@@ -1,34 +1,25 @@
-﻿const express = require("express");
+﻿// backend/src/routes/v1/admin/index.js
+const express = require("express");
 const router = express.Router();
 
-// 1. Import Middleware & Controllers
 const { authenticate, authorize } = require("../../../middleware/auth");
 const bookingController = require("../../../controllers/bookingController");
 
-// 2. Import Sub-routes (Các module con của Admin)
-const staffRoutes = require("./staffRoutes"); // File quản lý nhân viên
-const roomRoutes = require("./roomRoutes"); // File quản lý phòng (nếu bạn đã tách riêng cho admin)
+// Import file routes con (Đảm bảo file này nằm cùng thư mục admin)
+const staffRoutes = require("./staffRoutes");
+const roomRoutes = require("./roomRoutes");
 
-// --- BẢO MẬT: CHỐT CHẶN CẤP CAO ---
-// Tất cả các route bên dưới bắt buộc phải:
-// 1. Đã đăng nhập (authenticate)
-// 2. Có quyền là ADMIN (authorize)
+// --- CHỐT CHẶN BẢO MẬT ---
+// Chỉ cần khai báo 1 lần ở đây, tất cả con bên dưới đều được hưởng
 router.use(authenticate);
 router.use(authorize("admin"));
 
-// --- ĐỊNH NGHĨA ROUTES ---
+// --- ĐỊNH NGHĨA ---
+router.use("/staffs", staffRoutes); // -> /api/v1/admin/staffs
+router.use("/rooms", roomRoutes); // -> /api/v1/admin/rooms
 
-// A. Module Quản lý Nhân sự (Staffs)
-// Path: /api/v1/admin/staffs
-router.use("/staffs", staffRoutes);
-
-// B. Module Quản lý Phòng (Rooms)
-// Path: /api/v1/admin/rooms
-router.use("/rooms", roomRoutes);
-
-// C. Module Quản lý Booking (Tạm thời để đây hoặc tách ra file bookingRoutes riêng)
-// Path: /api/v1/admin/bookings
-router.get("/bookings", bookingController.getBookingsForStaffAdmin); // Xem tất cả booking
-router.delete("/bookings/:id", bookingController.cancelBookingByStaffAdmin); // Hủy booking
+// Booking routes
+router.get("/bookings", bookingController.getBookingsForStaffAdmin);
+router.delete("/bookings/:id", bookingController.cancelBookingByStaffAdmin);
 
 module.exports = router;

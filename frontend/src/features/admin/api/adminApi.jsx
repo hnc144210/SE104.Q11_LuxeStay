@@ -145,3 +145,79 @@ export const deleteRoom = async (id) => {
     throw new Error(error.response?.data?.message || error.message);
   }
 };
+export const getStaffs = async (params) => {
+  try {
+    // params: { page, limit, search, status, department }
+    const response = await axios.get(`${BASE_URL}/admin/staffs`, {
+      headers: getAuthHeaders(),
+      params: params,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
+// 12. Lấy chi tiết 1 nhân viên
+export const getStaffById = async (id) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/admin/staffs/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
+// 13. Tạo nhân viên mới
+export const createStaff = async (data) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/admin/staffs`, data, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
+// 14. Cập nhật thông tin nhân viên
+export const updateStaff = async (id, data) => {
+  try {
+    const response = await axios.put(`${BASE_URL}/admin/staffs/${id}`, data, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
+// 15. Cập nhật trạng thái nhân viên nhanh (Active/Inactive)
+export const updateStaffStatus = async (id, status) => {
+  try {
+    const response = await axios.put(
+      `${BASE_URL}/admin/staffs/${id}/status`,
+      { status },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
+// 16. Xóa nhân viên
+export const deleteStaff = async (id) => {
+  try {
+    const response = await axios.delete(`${BASE_URL}/admin/staffs/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
