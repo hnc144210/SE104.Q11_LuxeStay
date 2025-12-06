@@ -23,7 +23,7 @@ import DashboardPage from "./features/admin/DashboardPage";
 import RoomManagementPage from "./features/admin/RoomManagementPage";
 import BookingManagementPage from "./features/admin/BookingManagementPage";
 import CustomerManagementPage from "./features/admin/CustomerManagementPage";
-
+import StaffManagementPage from "./features/admin/StaffManagementPage";
 function App() {
   return (
     <AuthProvider>
@@ -54,7 +54,7 @@ function App() {
             <Route path="rooms" element={<RoomManagementPage />} />
             <Route path="bookings" element={<BookingManagementPage />} />
             <Route path="customers" element={<CustomerManagementPage />} />
-
+            <Route path="staffs" element={<StaffManagementPage />} />
             {/* Trang cài đặt chưa làm thì để tạm div */}
             <Route
               path="settings"

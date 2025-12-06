@@ -21,13 +21,6 @@ exports.getStaffs = async (req, res) => {
         id,
         full_name,
         email,
-        phone,
-        position,
-        department,
-        salary,
-        status,
-        created_at,
-        avatar_url,
         role
       `,
         { count: "exact" }
@@ -99,15 +92,7 @@ exports.getStaffById = async (req, res) => {
 // --- 3. POST: Tạo Staff mới (Insert vào profiles) ---
 exports.createStaff = async (req, res) => {
   try {
-    const {
-      full_name,
-      email,
-      phone,
-      position,
-      department,
-      salary,
-      status = "active",
-    } = req.body;
+    const { full_name, email } = req.body;
 
     if (!full_name || !email) {
       return res
@@ -134,11 +119,6 @@ exports.createStaff = async (req, res) => {
       .insert({
         full_name,
         email,
-        phone,
-        position,
-        department,
-        salary,
-        status,
         role: "staff", // <--- QUAN TRỌNG
       })
       .select()
@@ -172,11 +152,6 @@ exports.updateStaff = async (req, res) => {
       .from("profiles")
       .update({
         full_name,
-        phone,
-        position,
-        department,
-        salary,
-        avatar_url,
       })
       .eq("id", id)
       .eq("role", "staff") // Constraint an toàn
