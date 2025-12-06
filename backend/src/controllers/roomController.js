@@ -241,4 +241,189 @@ exports.getRoomById = async (req, res) => {
     });
   }
 };
+exports.getRooms = async (req, res) => {
+  try {
+    const { type, status, page = 1, limit = 10 } = req.query;
+
+    // Tính phân trang
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase.from("rooms").select(
+      `
+        id,
+        room_number,
+        status,
+        note,
+        created_at,
+        room_types (
+          id,
+          name,
+          base_price,
+          max_guests
+        )
+      `,
+      { count: "exact" }
+    );
+
+    // Áp dụng bộ lọc nếu có
+    if (type) query = query.eq("room_type_id", type);
+    if (status) query = query.eq("status", status);
+
+    // Áp dụng phân trang & sắp xếp
+    query = query.range(from, to).order("room_number", { ascending: true });
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      message: "Lấy danh sách phòng thành công",
+      data: data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    console.error("getRooms error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+// --- 2. POST: Tạo phòng mới ---
+exports.createRoom = async (req, res) => {
+  try {
+    const { room_number, room_type_id, status = "available", note } = req.body;
+
+    // Validate
+    if (!room_number || !room_type_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu thông tin phòng" });
+    }
+
+    // Kiểm tra số phòng trùng
+    const { data: exist } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("room_number", room_number)
+      .single();
+
+    if (exist) {
+      return res
+        .status(400)
+        .json({ success: false, message: `Phòng ${room_number} đã tồn tại` });
+    }
+
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert({ room_number, room_type_id, status, note })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.status(201).json({
+      success: true,
+      message: "Tạo phòng thành công",
+      data: data,
+    });
+  } catch (error) {
+    console.error("createRoom error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+// --- 3. PUT: Cập nhật thông tin phòng ---
+exports.updateRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { room_number, room_type_id, note } = req.body;
+
+    const { data, error } = await supabase
+      .from("rooms")
+      .update({ room_number, room_type_id, note })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      message: "Cập nhật phòng thành công",
+      data: data,
+    });
+  } catch (error) {
+    console.error("updateRoom error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+// --- 4. PUT: Cập nhật TRẠNG THÁI phòng (API riêng biệt) ---
+exports.updateRoomStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // available, occupied, maintenance, cleaning
+
+    const validStatuses = ["available", "occupied", "maintenance", "cleaning"];
+    if (!validStatuses.includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Trạng thái không hợp lệ" });
+    }
+
+    const { data, error } = await supabase
+      .from("rooms")
+      .update({ status })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      message: "Cập nhật trạng thái thành công",
+      data: data,
+    });
+  } catch (error) {
+    console.error("updateRoomStatus error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+// --- 5. DELETE: Xóa phòng ---
+exports.deleteRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra ràng buộc (nếu phòng đang có booking hoặc rental active thì ko cho xóa)
+    // Tạm thời xóa thẳng (Supabase sẽ báo lỗi nếu có Foreign Key constraint)
+    const { error } = await supabase.from("rooms").delete().eq("id", id);
+
+    if (error) {
+      // Mã lỗi Postgres cho vi phạm khóa ngoại là 23503
+      if (error.code === "23503") {
+        return res.status(400).json({
+          success: false,
+          message: "Không thể xóa phòng đang có dữ liệu đặt phòng/thuê.",
+        });
+      }
+      throw error;
+    }
+
+    return res.json({
+      success: true,
+      message: "Xóa phòng thành công",
+    });
+  } catch (error) {
+    console.error("deleteRoom error:", error);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
 //controllers/roomController.js

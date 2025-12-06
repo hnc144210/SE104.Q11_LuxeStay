@@ -315,28 +315,37 @@ exports.createBookingForCustomer = async (req, res) => {
     const { data: newBooking, error: insertError } = await supabase
       .from("bookings")
       .insert({
-        customer_id: user.customerId,
+        customer_id: user.customerId, // Lấy từ token người dùng đăng nhập
         room_id,
         check_in_date,
         check_out_date,
-        status: "pending", // cho staff/admin duyệt sau
+        status: "pending",
         deposit_amount,
         created_by: user.userId,
       })
       .select(
         `
+      id,
+      customer_id,
+      room_id,
+      check_in_date,
+      check_out_date,
+      status,
+      deposit_amount,
+      created_at,
+      room:rooms (
         id,
-        customer_id,
-        room_id,
-        check_in_date,
-        check_out_date,
-        status,
-        deposit_amount,
-        created_at
-      `
+        room_number,
+        room_type:room_types (
+          id,
+          name,
+          base_price,
+          max_guests
+        )
+      )
+    `
       )
       .single();
-
     if (insertError) {
       console.error("createBookingForCustomer insertError:", insertError);
       return res.status(500).json({
