@@ -1,19 +1,13 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const staffController = require("../../../controllers/staffController");
 
-const { createStaff } = require('../../../controllers/authController');
-const { authenticate: protect, authorize: restrictTo } = require('../../../middleware/auth');
-const userController = require('../../../controllers/userController');
-
-
-router
-  .route('/')
-  .post(protect, restrictTo('admin'), createStaff)
-  .get(protect, restrictTo('admin'), userController.getStaff);
-
-router
-  .route('/:id')
-  .get(protect, restrictTo('admin'), userController.getStaffById)
-  .put(protect, restrictTo('admin'), userController.updateStaff);
+router.get("/", staffController.getStaffs);
+router.post("/", staffController.createStaff);
+router.get("/:id", staffController.getStaffById);
+router.put("/:id", staffController.updateStaff);
+router.put("/:id/status", staffController.updateStaffStatus);
+router.delete("/:id", staffController.deleteStaff);
 
 module.exports = router;
+// backend/src/routes/v1/admin/staffRoutes.js

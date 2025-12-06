@@ -1,36 +1,68 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom"; // Thêm Navigate để redirect
 
-// 1. Import AuthProvider từ file Context bạn vừa tạo
-import { AuthProvider } from "./features/context/AuthContext.jsx";
-// 2. Import các trang (Features)
+// Context
+import { AuthProvider } from "./features/context/AuthContext";
 
-import HomePage from "./features/home/HomePage.jsx";
-// Lưu ý: Nếu AuthPage export default thì import như dòng dưới, nếu export { AuthPage } thì giữ nguyên như cũ của bạn
-import AuthPage from "./features/auth/AuthPage.jsx";
-import Navbar from "./components/layout/Navbar.jsx";
-import { Footer } from "./components/layout/Footer.jsx";
-import SearchResultsPage from "./features/room/SearchResultsPage"; // Import trang mới
-import RoomDetailsPage from "./features/room/RoomDetailsPage.jsx";
-import BookingConfirmationPage from "./features/booking/BookingConfirmationPage.jsx";
-import BookingSuccessPage from "./features/booking/BookingSuccessPage.jsx";
+// Layouts
+import AdminLayout from "./components/layout/AdminLayout";
+
+// Public Pages
+import HomePage from "./features/home/HomePage";
+import AuthPage from "./features/auth/AuthPage";
+import SearchResultsPage from "./features/room/SearchResultsPage";
+import RoomDetailsPage from "./features/room/RoomDetailsPage";
+
+// Customer Pages
+import BookingConfirmationPage from "./features/booking/BookingConfirmationPage";
+import BookingSuccessPage from "./features/booking/BookingSuccessPage";
+import MyBookingsPage from "./features/booking/MyBookingPage";
+
+// Admin Pages
+import DashboardPage from "./features/admin/DashboardPage";
+import RoomManagementPage from "./features/admin/RoomManagementPage";
+import BookingManagementPage from "./features/admin/BookingManagementPage";
+import CustomerManagementPage from "./features/admin/CustomerManagementPage";
+import StaffManagementPage from "./features/admin/StaffManagementPage";
 function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/auth" element={<AuthPage />} />
+      <div className="flex flex-col min-h-screen">
+        <Routes>
+          {/* === PUBLIC ROUTES === */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/search-results" element={<SearchResultsPage />} />
+          <Route path="/room-details/:id" element={<RoomDetailsPage />} />
 
-        {/* 👇 THÊM DÒNG NÀY */}
-        <Route path="/search-results" element={<SearchResultsPage />} />
+          {/* === CUSTOMER ROUTES === */}
+          <Route
+            path="/booking-confirmation"
+            element={<BookingConfirmationPage />}
+          />
+          <Route path="/booking-success" element={<BookingSuccessPage />} />
+          <Route path="/my-bookings" element={<MyBookingsPage />} />
 
-        <Route path="/room-details" element={<RoomDetailsPage />} />
-        <Route
-          path="/booking-confirmation"
-          element={<BookingConfirmationPage />}
-        />
-        <Route path="/booking-success" element={<BookingSuccessPage />} />
-      </Routes>
+          {/* === ADMIN ROUTES (Đã sửa lại cấu trúc chuẩn) === */}
+          {/* Mọi route con bên trong sẽ được bao bọc bởi AdminLayout (có Sidebar) */}
+          <Route path="/admin" element={<AdminLayout />}>
+            {/* Mặc định vào /admin sẽ tự nhảy sang /admin/dashboard */}
+            <Route index element={<Navigate to="dashboard" replace />} />
+
+            {/* Path con không cần dấu / ở đầu */}
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="rooms" element={<RoomManagementPage />} />
+            <Route path="bookings" element={<BookingManagementPage />} />
+            <Route path="customers" element={<CustomerManagementPage />} />
+            <Route path="staffs" element={<StaffManagementPage />} />
+            {/* Trang cài đặt chưa làm thì để tạm div */}
+            <Route
+              path="settings"
+              element={<div>Trang Cài đặt (Đang phát triển)</div>}
+            />
+          </Route>
+        </Routes>
+      </div>
     </AuthProvider>
   );
 }
