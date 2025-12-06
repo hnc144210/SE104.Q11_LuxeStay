@@ -17,3 +17,4 @@ router.delete("/bookings/:id", bookingController.cancelBookingByStaffAdmin);
 router.use("/customers", customerRoutes);
 
 module.exports = router;
+// backend/src/routes/v1/staff/index.js

@@ -32,7 +32,6 @@ export const HomePage = () => {
       <main>
         {/* 👇 Thanh Search sẽ nằm trong component này */}
         <HeroSection />
-
         <ServiceSection />
         <DestinationSection />
         <BookingStepsSection />
