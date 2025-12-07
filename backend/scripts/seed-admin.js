@@ -21,7 +21,7 @@ async function seedAdmin() {
       .eq("role", "admin");
 
     if (oldProfiles && oldProfiles.length > 0) {
-      console.log(`⚠️  Tìm thấy ${oldProfiles.length} admin cũ, đang xóa...`);
+      console.log(`Tìm thấy ${oldProfiles.length} admin cũ, đang xóa...`);
       for (const profile of oldProfiles) {
         await supabase.from("profiles").delete().eq("id", profile.id);
         try {

@@ -1,11 +1,13 @@
 ﻿// src/routes/v1/customer/index.js
 const router = require("express").Router();
-const { authenticate } = require("../../../middleware/auth");
+const { authenticate, authorize } = require("../../../middleware/auth");
+
 const bookingController = require("../../../controllers/bookingController");
 
 // Tất cả route customer yêu cầu đăng nhập
 router.use(authenticate);
 
+router.use(authorize(['customer']));
 /**
  * POST /api/v1/customer/bookings
  * Khách tạo booking mới
