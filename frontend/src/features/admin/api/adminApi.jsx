@@ -14,7 +14,7 @@ const getAuthHeaders = () => {
 export const getCustomers = async (params) => {
   try {
     // Gọi vào route của staff vì staff quản lý customer
-    const response = await axios.get(`${BASE_URL}/staff/customers`, {
+    const response = await axios.get(`${BASE_URL}/admin/customers`, {
       headers: getAuthHeaders(),
       params: params, // { search: '...' }
     });
@@ -27,7 +27,7 @@ export const getCustomers = async (params) => {
 // 2. Tạo khách hàng mới
 export const createCustomer = async (data) => {
   try {
-    const response = await axios.post(`${BASE_URL}/staff/customers`, data, {
+    const response = await axios.post(`${BASE_URL}/admin/customers`, data, {
       headers: getAuthHeaders(),
     });
     return response.data;
@@ -40,7 +40,7 @@ export const createCustomer = async (data) => {
 export const updateCustomer = async (id, data) => {
   try {
     const response = await axios.put(
-      `${BASE_URL}/staff/customers/${id}`,
+      `${BASE_URL}/admin/customers/${id}`,
       data,
       {
         headers: getAuthHeaders(),
@@ -58,7 +58,7 @@ export const updateCustomer = async (id, data) => {
 export const getAllBookings = async (params) => {
   try {
     // params: { status, room_id, from, to }
-    const response = await axios.get(`${BASE_URL}/staff/bookings`, {
+    const response = await axios.get(`${BASE_URL}/admin/bookings`, {
       headers: getAuthHeaders(),
       params: params,
     });
@@ -68,10 +68,10 @@ export const getAllBookings = async (params) => {
   }
 };
 
-// 5. Hủy Booking (Quyền Admin/Staff)
+// 5. Hủy Booking (Quyền Admin/stafff)
 export const cancelBookingByAdmin = async (id) => {
   try {
-    const response = await axios.delete(`${BASE_URL}/staff/bookings/${id}`, {
+    const response = await axios.delete(`${BASE_URL}/admin/bookings/${id}`, {
       headers: getAuthHeaders(),
     });
     return response.data;
