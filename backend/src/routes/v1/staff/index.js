@@ -24,5 +24,7 @@ router.use("/checkin", checkInRoutes);
 // STAFF: check-out
 router.use("/checkout", checkOutRoutes);
 
+router.use('/finance', require('./financeRoutes'));
+
 module.exports = router;
 // backend/src/routes/v1/staff/index.js
