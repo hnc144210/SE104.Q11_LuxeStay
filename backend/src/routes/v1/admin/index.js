@@ -15,7 +15,7 @@ router.use(authenticate);
 router.use(authorize("admin"));
 
 // --- ĐỊNH NGHĨA ---
-router.use("/staffs", staffRoutes); // -> /api/v1/admin/staffs
+router.use("/staff", staffRoutes); // -> /api/v1/admin/staff
 router.use("/rooms", roomRoutes); // -> /api/v1/admin/rooms
 
 // Booking routes
