@@ -90,3 +90,5 @@ export const AuthProvider = ({ children }) => {
 export const useAuthContext = () => {
   return useContext(AuthContext);
 };
+
+//feature/context/AuthContext.jsx

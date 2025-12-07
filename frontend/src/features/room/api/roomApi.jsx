@@ -18,3 +18,13 @@ export const checkRoomAvailability = async (params) => {
     throw new Error(errorMessage);
   }
 };
+export const getRoomById = async (id) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/rooms/${id}`);
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message;
+    throw new Error(errorMessage);
+  }
+};
+//roomApi.jsx

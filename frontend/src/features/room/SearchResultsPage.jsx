@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
 import { Footer } from "../../components/layout/Footer";
 
-// --- ICONS ---
+// --- ICONS (Giữ nguyên) ---
 const Icons = {
   Star: () => (
     <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
@@ -124,7 +124,8 @@ const RoomSkeleton = () => (
 );
 
 // --- IMPROVED ROOM CARD ---
-const RoomCard = ({ room }) => (
+// [UPDATE 1] Thêm prop `onSelect` và gắn vào onClick button
+const RoomCard = ({ room, onSelect }) => (
   <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 transform hover:-translate-y-1 z-0">
     {/* Image Section */}
     <div className="h-56 bg-gray-100 relative overflow-hidden">
@@ -208,7 +209,11 @@ const RoomCard = ({ room }) => (
             </span>
           </div>
         </div>
-        <button className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-200">
+        {/* [UPDATE 2] Gắn sự kiện onClick vào nút */}
+        <button
+          onClick={onSelect}
+          className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-200"
+        >
           Chọn phòng
         </button>
       </div>
@@ -302,13 +307,24 @@ const SearchResultsPage = () => {
     fetchRooms();
   }, [searchParams]);
 
+  // [UPDATE 3] Hàm xử lý khi chọn phòng
+  const handleSelectRoom = (room) => {
+    // Chuyển hướng sang trang chi tiết phòng
+    // Truyền state để trang detail không phải chọn lại ngày
+    navigate(`/room-details/${room.id}`, {
+      state: {
+        check_in_date: searchParams.check_in_date,
+        check_out_date: searchParams.check_out_date,
+        max_guests: searchParams.max_guests,
+        roomData: room, // Truyền luôn data phòng qua để đỡ phải fetch lại (nếu muốn)
+      },
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
       <Navbar />
 
-      {/* Thêm pt-16 (padding-top 64px) để nội dung không bị Navbar che mất (giả sử Navbar là fixed).
-        Nếu Navbar của bạn không fixed, bạn có thể giảm class này thành pt-4 hoặc xóa đi.
-      */}
       <div className="pt-20 flex-grow flex flex-col">
         <div className="bg-white border-b border-gray-200 sticky top-16 z-40 shadow-sm transition-all duration-300">
           <div className="container mx-auto px-4 py-4">
@@ -431,7 +447,12 @@ const SearchResultsPage = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {rooms.map((room, index) => (
-                    <RoomCard key={room.id || index} room={room} />
+                    // [UPDATE 4] Truyền props onSelect
+                    <RoomCard
+                      key={room.id || index}
+                      room={room}
+                      onSelect={() => handleSelectRoom(room)}
+                    />
                   ))}
                 </div>
               )}
