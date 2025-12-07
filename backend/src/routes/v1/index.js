@@ -21,6 +21,5 @@ router.use("/customer", customerRoutes); // giữ của bạn
 router.use("/admin", authenticate, adminRoutes); // bảo mật
 router.use("/staff", authenticate, staffRoutes); // bảo mật
 
-
 module.exports = router;
 // backend/src/routes/v1/index.js
