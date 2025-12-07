@@ -6,7 +6,7 @@ router.get("/", staffController.getStaffs);
 router.post("/", staffController.createStaff);
 router.get("/:id", staffController.getStaffById);
 router.put("/:id", staffController.updateStaff);
-router.put("/:id/status", staffController.updateStaffStatus);
+//router.put("/:id/status", staffController.updateStaffStatus);
 router.delete("/:id", staffController.deleteStaff);
 
 module.exports = router;

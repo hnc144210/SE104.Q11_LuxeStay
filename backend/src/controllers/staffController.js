@@ -138,55 +138,70 @@ exports.createStaff = async (req, res) => {
   }
 };
 
-// --- 4. PUT: Cập nhật thông tin Staff ---
+/**
+ * PUT /users/staff/:id
+ * Cập nhật thông tin nhân viên
+ */
 exports.updateStaff = async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, phone, position, department, salary, avatar_url } =
-      req.body;
+    const { full_name, email, staff_code } = req.body;
 
-    // Chỉ cho phép update nếu user đó là staff
-    // (Có thể bỏ qua bước check này nếu tin tưởng ID, nhưng check thì an toàn hơn)
-
-    const { data, error } = await supabase
+    // Kiểm tra nhân viên có tồn tại không
+    const { data: existingStaff, error: checkError } = await supabase
       .from("profiles")
-      .update({
-        full_name,
-      })
+      .select("id, email, staff_code")
       .eq("id", id)
-      .eq("role", "staff") // Constraint an toàn
-      .select()
+      .eq("role", "staff")
       .single();
 
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      message: "Cập nhật thông tin thành công",
-      data: data,
-    });
-  } catch (error) {
-    console.error("updateStaff error:", error);
-    return res.status(500).json({ success: false, message: "Lỗi server" });
-  }
-};
-
-// --- 5. PUT: Cập nhật TRẠNG THÁI (Status) ---
-exports.updateStaffStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    const validStatuses = ["active", "inactive", "on_leave", "terminated"];
-    if (!validStatuses.includes(status)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Trạng thái không hợp lệ" });
+    if (checkError || !existingStaff) {
+      return errorResponse(res, 404, "Không tìm thấy nhân viên");
     }
 
+    // Kiểm tra email trùng nếu có thay đổi
+    if (email && email !== existingStaff.email) {
+      const { data: existEmail } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .neq("id", id)
+        .single();
+
+      if (existEmail) {
+        return errorResponse(res, 400, `Email ${email} đã được sử dụng`);
+      }
+    }
+
+    // Kiểm tra staff_code trùng nếu có thay đổi
+    if (staff_code && staff_code !== existingStaff.staff_code) {
+      const { data: existCode } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("staff_code", staff_code)
+        .neq("id", id)
+        .single();
+
+      if (existCode) {
+        return errorResponse(res, 400, `Mã nhân viên ${staff_code} đã được sử dụng`);
+      }
+    }
+
+    // Tạo object update chỉ với các field được gửi lên
+    const updateData = {};
+    if (full_name !== undefined) updateData.full_name = full_name;
+    if (email !== undefined) updateData.email = email;
+    if (staff_code !== undefined) updateData.staff_code = staff_code;
+
+    // Kiểm tra có data để update không
+    if (Object.keys(updateData).length === 0) {
+      return errorResponse(res, 400, "Không có dữ liệu để cập nhật");
+    }
+
+    // Cập nhật thông tin
     const { data, error } = await supabase
       .from("profiles")
-      .update({ status })
+      .update(updateData)
       .eq("id", id)
       .eq("role", "staff")
       .select()
@@ -196,16 +211,16 @@ exports.updateStaffStatus = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Cập nhật trạng thái thành công",
+      message: "Cập nhật thông tin nhân viên thành công",
       data: data,
     });
   } catch (error) {
-    console.error("updateStaffStatus error:", error);
-    return res.status(500).json({ success: false, message: "Lỗi server" });
+    console.error("updateStaff error:", error);
+    return errorResponse(res, 500, "Lỗi server");
   }
 };
 
-// --- 6. DELETE: Xóa Staff (Xóa Profile) ---
+// --- 5. DELETE: Xóa Staff (Xóa Profile) ---
 exports.deleteStaff = async (req, res) => {
   try {
     const { id } = req.params;
@@ -219,10 +234,11 @@ exports.deleteStaff = async (req, res) => {
 
     if (error) {
       if (error.code === "23503") {
-        return res.status(400).json({
-          success: false,
-          message: "Không thể xóa nhân viên này do có dữ liệu liên quan.",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Không thể xóa nhân viên này do có dữ liệu liên quan."
+        );
       }
       throw error;
     }
@@ -233,6 +249,6 @@ exports.deleteStaff = async (req, res) => {
     });
   } catch (error) {
     console.error("deleteStaff error:", error);
-    return res.status(500).json({ success: false, message: "Lỗi server" });
+    return errorResponse(res, 500, "Lỗi server");
   }
 };
