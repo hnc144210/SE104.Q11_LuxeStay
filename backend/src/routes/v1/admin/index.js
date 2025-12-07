@@ -8,15 +8,17 @@ const bookingController = require("../../../controllers/bookingController");
 // Import file routes con (Đảm bảo file này nằm cùng thư mục admin)
 const staffRoutes = require("./staffRoutes");
 const roomRoutes = require("./roomRoutes");
+const configRoutes = require("./configRoutes");
 
 // --- CHỐT CHẶN BẢO MẬT ---
 // Chỉ cần khai báo 1 lần ở đây, tất cả con bên dưới đều được hưởng
-router.use(authenticate);
+//router.use(authenticate); đã được khai báo ở src/routes/v1/index.js
 router.use(authorize("admin"));
 
 // --- ĐỊNH NGHĨA ---
 router.use("/staff", staffRoutes); // -> /api/v1/admin/staff
 router.use("/rooms", roomRoutes); // -> /api/v1/admin/rooms
+router.use("/config", configRoutes); // ->/api/v1/admin/config
 
 // Booking routes
 router.get("/bookings", bookingController.getBookingsForStaffAdmin);
