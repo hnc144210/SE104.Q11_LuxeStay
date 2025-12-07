@@ -32,7 +32,6 @@ export const HomePage = () => {
       <main>
         {/* 👇 Thanh Search sẽ nằm trong component này */}
         <HeroSection />
-
         <ServiceSection />
         <DestinationSection />
         <BookingStepsSection />
@@ -62,8 +61,10 @@ export const HomePage = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
 
 export default HomePage;
+//home/HomePage.jsx

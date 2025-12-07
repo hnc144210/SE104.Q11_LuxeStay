@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaUserCircle, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { useAuthContext } from "../../features/context/AuthContext.jsx";
 import e from "cors";
+import { User, LogOut, History, CalendarCheck } from "lucide-react"; // Import icon cho đẹp
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -90,7 +91,7 @@ export const Navbar = () => {
 
               {/* Dropdown Menu */}
               {showDropdown && (
-                <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-2 overflow-hidden animate-fade-in-down">
+                <div className="absolute right-0 mt-3 w-[190px] bg-white rounded-xl shadow-lg border border-gray-100 py-2 overflow-hidden animate-fade-in-down">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <p className="text-sm text-gray-500">
                       Xin chào,{user.full_name}
@@ -98,12 +99,35 @@ export const Navbar = () => {
                   </div>
 
                   <Link
-                    to="/profile"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-500 transition"
-                    onClick={() => setShowDropdown(false)}
+                    to="/my-bookings"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
                   >
-                    <FaUser /> Tài khoản
+                    <History size={16} />
+                    Lịch sử đặt phòng
                   </Link>
+
+                  {/* Nút Profile (nếu có) */}
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                  >
+                    <User size={16} />
+                    Hồ sơ cá nhân
+                  </Link>
+
+                  {/* Nút Admin (chỉ hiện nếu là admin/staff) */}
+                  {["admin", "staff"].includes(user.role) && (
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition"
+                    >
+                      <CalendarCheck size={16} />
+                      Trang quản trị
+                    </Link>
+                  )}
 
                   <button
                     onClick={handleLogout}
@@ -142,3 +166,4 @@ export const Navbar = () => {
   );
 };
 export default Navbar;
+//layout/Navbar.jsx

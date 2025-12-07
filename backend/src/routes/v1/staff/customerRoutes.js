@@ -1,13 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { authenticate } = require('../../../middleware/auth');
-const userController = require('../../../controllers/userController');
+const userController = require("../../../controllers/userController");
 
-router.post('/', userController.createCustomer);
-router.get('/', userController.getCustomers);
-router.get('/:id', userController.getCustomerById);
-router.put('/:id', authenticate, userController.updateCustomer);
+router.post("/", userController.createCustomer); // Tạo khách
+router.get("/", userController.getCustomers); // Lấy danh sách khách <-- CÁI BẠN CẦN
+router.get("/:id", userController.getCustomerById); // Lấy chi tiết
+router.put("/:id", userController.updateCustomer); // Sửa khách
 
 module.exports = router;
 
-
+// backend/src/routes/v1/staff/customerRoutes.js
