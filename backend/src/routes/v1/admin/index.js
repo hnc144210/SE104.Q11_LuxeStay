@@ -1,4 +1,4 @@
-﻿// backend/src/routes/v1/admin/index.js
+// backend/src/routes/v1/admin/index.js
 const express = require("express");
 const router = express.Router();
 
