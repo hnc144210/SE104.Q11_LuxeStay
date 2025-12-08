@@ -1,15 +1,15 @@
 ﻿const router = require("express").Router();
-
-const { authenticate } = require("../../../middleware/auth");
+const { authenticate, authorize } = require("../../../middleware/auth");
 const bookingController = require("../../../controllers/bookingController");
 const customerRoutes = require("./customerRoutes");
 const checkInRoutes = require("./checkInRoutes");
 const checkOutRoutes = require("./checkOutRoutes");
 const serviceRoutes = require("./serviceRoutes");
+const roomRoutes = require("./roomRoutes");
 
 // Tất cả route staff đều cần đăng nhập
 router.use(authenticate);
-router.use(authorize(['admin']));
+router.use(authorize(["admin", "staff"]));
 // STAFF: xem danh sách booking
 router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 
@@ -28,6 +28,8 @@ router.use("/checkout", checkOutRoutes); // -> /api/v1/staff/checkout
 //Yêu cầu dịch vụ
 router.use("/services", serviceRoutes);  // -> /api/v1/staff/services
 
+// STAFF: quản lý phòng
+router.use("/rooms", roomRoutes); // -> /api/v1/staff/rooms
 
 router.use('/finance', require('./financeRoutes'));
 

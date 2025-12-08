@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-const router = require('express').Router();
-const { authenticate, authorize } = require('../../../middleware/auth');
-=======
 // backend/src/routes/v1/admin/index.js
 const express = require("express");
 const router = express.Router();
