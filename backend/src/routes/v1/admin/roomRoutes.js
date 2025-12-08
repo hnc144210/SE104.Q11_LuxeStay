@@ -5,8 +5,8 @@ const roomController = require("../../../controllers/roomController");
 const { authenticate, authorize } = require("../../../middleware/auth");
 
 // Áp dụng bảo mật cho tất cả route bên dưới
-router.use(authenticate);
-router.use(authorize("admin", "staff"));
+//router.use(authenticate);
+//router.use(authorize("admin", "staff")); ->admin/index.js đã có:
 
 // 1. Tạo phòng mới
 router.post("/", roomController.createRoom);
