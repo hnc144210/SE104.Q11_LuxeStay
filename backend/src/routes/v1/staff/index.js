@@ -5,6 +5,7 @@ const bookingController = require("../../../controllers/bookingController");
 const customerRoutes = require("./customerRoutes");
 const checkInRoutes = require("./checkInRoutes");
 const checkOutRoutes = require("./checkOutRoutes");
+const serviceRoutes = require("./serviceRoutes");
 
 // Tất cả route staff đều cần đăng nhập
 router.use(authenticate);
@@ -16,13 +17,17 @@ router.get('/bookings', bookingController.getBookingsForStaffAdmin);
 router.delete('/bookings/:id', bookingController.cancelBookingByStaffAdmin);
 
 // STAFF: quản lý khách hàng
-router.use("/customers", customerRoutes);
+router.use("/customers", customerRoutes); // -> /api/v1/staff/customers
 
 // STAFF: check-in
-router.use("/checkin", checkInRoutes);
+router.use("/checkin", checkInRoutes); // -> /api/v1/staff/checkin
 
 // STAFF: check-out
-router.use("/checkout", checkOutRoutes);
+router.use("/checkout", checkOutRoutes); // -> /api/v1/staff/checkout
+
+//Yêu cầu dịch vụ
+router.use("/services", serviceRoutes);  // -> /api/v1/staff/services
+
 
 router.use('/finance', require('./financeRoutes'));
 

@@ -1,0 +1,400 @@
+// backend/src/controllers/configController.js
+const { createClient } = require("@supabase/supabase-js");
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+/**
+ * GET /api/admin/config
+ * Lấy toàn bộ cấu hình hệ thống
+ */
+exports.getConfig = async (req, res) => {
+  try {
+    const userRole = req.user?.role;
+    
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền xem cấu hình hệ thống"
+      });
+    }
+
+    // Lấy tất cả regulations
+    const { data: regulations, error: regErr } = await supabase
+      .from("regulations")
+      .select("*")
+      .order("key", { ascending: true });
+
+    if (regErr) throw regErr;
+
+    // Lấy room_types
+    const { data: roomTypes, error: rtErr } = await supabase
+      .from("room_types")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (rtErr) throw rtErr;
+
+    // Lấy services
+    const { data: services, error: servErr } = await supabase
+      .from("services")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (servErr) throw servErr;
+
+    // Format regulations thành object dễ đọc
+    const regulationsMap = {};
+    regulations.forEach(reg => {
+      regulationsMap[reg.key] = {
+        value: reg.value,
+        description: reg.description
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Lấy cấu hình hệ thống thành công",
+      data: {
+        regulations: regulationsMap,
+        room_types: roomTypes,
+        services: services,
+        customer_types: ["domestic", "foreign"]
+      }
+    });
+
+  } catch (error) {
+    console.error("getConfig error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/config/room-types
+ * Cập nhật loại phòng
+ */
+exports.updateRoomTypes = async (req, res) => {
+  try {
+    const { room_types: roomTypes } = req.body;
+    const userRole = req.user?.role;
+    
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền cập nhật loại phòng"
+      });
+    }
+
+    if (!roomTypes || !Array.isArray(roomTypes) || roomTypes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin room_types hoặc dữ liệu không hợp lệ"
+      });
+    }
+
+    // Validate từng room type
+    for (const rt of roomTypes) {
+      if (!rt.id || !rt.name || !rt.base_price) {
+        return res.status(400).json({
+          success: false,
+          message: "Mỗi loại phòng phải có id, name và base_price"
+        });
+      }
+
+      if (rt.base_price <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Giá phòng phải lớn hơn 0"
+        });
+      }
+
+      if (rt.max_guests && rt.max_guests < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Số khách tối đa phải ít nhất là 1"
+        });
+      }
+
+      if (rt.surcharge_ratio !== undefined) {
+        if (rt.surcharge_ratio < 0 || rt.surcharge_ratio > 1) {
+          return res.status(400).json({
+            success: false,
+            message: "Hệ số phụ thu phải từ 0-1 (0-100%)"
+          });
+        }
+      }
+    }
+
+    // Cập nhật từng room type
+    const updatePromises = roomTypes.map(async (rt) => {
+      const updates = {
+        name: rt.name,
+        base_price: rt.base_price
+      };
+
+      if (rt.max_guests !== undefined) {
+        updates.max_guests = rt.max_guests;
+      }
+
+      if (rt.surcharge_ratio !== undefined) {
+        updates.surcharge_ratio = rt.surcharge_ratio;
+      }
+
+      return supabase
+        .from("room_types")
+        .update(updates)
+        .eq("id", rt.id)
+        .select()
+        .single();
+    });
+
+    const results = await Promise.all(updatePromises);
+
+    // Kiểm tra lỗi
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) {
+      console.error("Update room types errors:", errors);
+      throw errors[0].error;
+    }
+
+    const updatedRoomTypes = results.map(r => r.data);
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật loại phòng thành công",
+      data: updatedRoomTypes
+    });
+
+  } catch (error) {
+    console.error("updateRoomTypes error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/config/guest-types
+ * Cập nhật phụ thu loại khách (customer_type)
+ */
+exports.updateGuestTypes = async (req, res) => {
+  try {
+    const { foreign_surcharge_ratio: foreignSurchargeRatio } = req.body;
+    const userRole = req.user?.role;
+    
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền cập nhật cấu hình loại khách"
+      });
+    }
+
+    if (foreignSurchargeRatio === undefined || foreignSurchargeRatio < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Hệ số phụ thu khách nước ngoài phải >= 1"
+      });
+    }
+
+    // Kiểm tra regulation có tồn tại không
+    const { data: existing, error: findErr } = await supabase
+      .from("regulations")
+      .select("*")
+      .eq("key", "foreign_guest_surcharge_ratio")
+      .maybeSingle();
+
+    if (findErr) throw findErr;
+
+    let result;
+    if (existing) {
+      // Update
+      const { data, error: updateErr } = await supabase
+        .from("regulations")
+        .update({ 
+          value: foreignSurchargeRatio,
+          description: "Hệ số phụ thu khách nước ngoài (" + foreignSurchargeRatio + "x)"
+        })
+        .eq("key", "foreign_guest_surcharge_ratio")
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+      result = data;
+    } else {
+      // Insert
+      const { data, error: insertErr } = await supabase
+        .from("regulations")
+        .insert({
+          key: "foreign_guest_surcharge_ratio",
+          value: foreignSurchargeRatio,
+          description: "Hệ số phụ thu khách nước ngoài (" + foreignSurchargeRatio + "x)"
+        })
+        .select()
+        .single();
+
+      if (insertErr) throw insertErr;
+      result = data;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật cấu hình loại khách thành công",
+      data: {
+        key: result.key,
+        value: result.value,
+        description: result.description
+      }
+    });
+
+  } catch (error) {
+    console.error("updateGuestTypes error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/config/surcharges
+ * Cập nhật các loại phụ thu
+ */
+exports.updateSurcharges = async (req, res) => {
+  try {
+    const { 
+      deposit_percentage: depositPercentage,
+      extra_guest_surcharge_ratio: extraGuestSurchargeRatio 
+    } = req.body;
+    const userRole = req.user?.role;
+    
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền cập nhật phụ thu"
+      });
+    }
+
+    const updates = [];
+
+    // Cập nhật deposit_percentage
+    if (depositPercentage !== undefined) {
+      if (depositPercentage < 0 || depositPercentage > 100) {
+        return res.status(400).json({
+          success: false,
+          message: "Phần trăm đặt cọc phải từ 0-100"
+        });
+      }
+
+      const { data: existing, error: findErr } = await supabase
+        .from("regulations")
+        .select("*")
+        .eq("key", "deposit_percentage")
+        .maybeSingle();
+
+      if (findErr) throw findErr;
+
+      if (existing) {
+        const { error: updateErr } = await supabase
+          .from("regulations")
+          .update({ 
+            value: depositPercentage,
+            description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)"
+          })
+          .eq("key", "deposit_percentage");
+
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from("regulations")
+          .insert({
+            key: "deposit_percentage",
+            value: depositPercentage,
+            description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)"
+          });
+
+        if (insertErr) throw insertErr;
+      }
+
+      updates.push({
+        key: "deposit_percentage",
+        value: depositPercentage,
+        description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)"
+      });
+    }
+
+    // Cập nhật extra_guest_surcharge_ratio
+    if (extraGuestSurchargeRatio !== undefined) {
+      if (extraGuestSurchargeRatio < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Hệ số phụ thu vượt khách phải >= 0"
+        });
+      }
+
+      const { data: existing, error: findErr } = await supabase
+        .from("regulations")
+        .select("*")
+        .eq("key", "extra_guest_surcharge_ratio")
+        .maybeSingle();
+
+      if (findErr) throw findErr;
+
+      if (existing) {
+        const { error: updateErr } = await supabase
+          .from("regulations")
+          .update({ 
+            value: extraGuestSurchargeRatio,
+            description: "Hệ số phụ thu vượt số khách (" + extraGuestSurchargeRatio + "x)"
+          })
+          .eq("key", "extra_guest_surcharge_ratio");
+
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from("regulations")
+          .insert({
+            key: "extra_guest_surcharge_ratio",
+            value: extraGuestSurchargeRatio,
+            description: "Hệ số phụ thu vượt số khách (" + extraGuestSurchargeRatio + "x)"
+          });
+
+        if (insertErr) throw insertErr;
+      }
+
+      updates.push({
+        key: "extra_guest_surcharge_ratio",
+        value: extraGuestSurchargeRatio,
+        description: "Hệ số phụ thu vượt số khách (" + extraGuestSurchargeRatio + "x)"
+      });
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Không có thông tin nào để cập nhật"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật phụ thu thành công",
+      data: updates
+    });
+
+  } catch (error) {
+    console.error("updateSurcharges error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  }
+};
