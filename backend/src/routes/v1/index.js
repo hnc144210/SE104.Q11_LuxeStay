@@ -4,21 +4,24 @@ const router = express.Router();
 const { authenticate } = require("../../middleware/auth");
 
 // Import routes
-const authRoutes = require("./common/authRoutes");
-const roomRoutes = require("./common/roomRoutes");
-const bookingRoutes = require("./common/bookingRoutes");
-
-const adminRoutes = require("./admin/index");
-const customerRoutes = require("./customer"); // giữ của bạn
-const staffRoutes = require("./staff/index");
+const authRoutes = require('./common/authRoutes');
+const roomRoutes = require('./common/roomRoutes');
+const bookingRoutes = require('./common/bookingRoutes');
+const adminRoutes = require('./admin/index');
+const staffRoutes = require('./staff/index');
 
 // Register routes
-router.use("/auth", authRoutes);
-router.use("/rooms", roomRoutes);
-router.use("/bookings", bookingRoutes);
+router.use('/auth', authRoutes);
+router.use('/rooms', roomRoutes);
+router.use('/bookings', bookingRoutes);
+router.use('/admin', authenticate, adminRoutes);
+router.use('/staff', authenticate, staffRoutes);
 
+<<<<<<< HEAD
+=======
 router.use("/admin", authenticate, adminRoutes); // bảo mật
 router.use("/staff", authenticate, staffRoutes); // bảo mật
+>>>>>>> d5f2e3193a199f67d981f395335fed9e36a86b3a
 
 module.exports = router;
 // backend/src/routes/v1/index.js

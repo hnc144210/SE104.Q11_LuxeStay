@@ -1,8 +1,12 @@
+<<<<<<< HEAD
+const { supabase } = require('../utils/supabaseClient');
+=======
 const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+>>>>>>> d5f2e3193a199f67d981f395335fed9e36a86b3a
 
 exports.createCustomer = async (req, res) => {
   try {
