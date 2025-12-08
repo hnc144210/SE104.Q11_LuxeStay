@@ -23,6 +23,5 @@ router.use("/admin", authenticate, adminRoutes); // bảo mật
 router.use("/staff", authenticate, staffRoutes); // bảo mật
 >>>>>>> d5f2e3193a199f67d981f395335fed9e36a86b3a
 
-
 module.exports = router;
 // backend/src/routes/v1/index.js
