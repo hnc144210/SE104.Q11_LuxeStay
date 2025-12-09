@@ -7,6 +7,7 @@ import {
   Link,
 } from "react-router-dom";
 import {
+  LogIn,
   LayoutDashboard,
   BedDouble,
   CalendarCheck,
@@ -39,6 +40,7 @@ const AdminLayout = () => {
     { icon: UserCog, label: "Nhân viên", path: "/admin/staffs" },
 
     { icon: Users, label: "Khách hàng", path: "/admin/customers" },
+    { icon: LogIn, label: "Check In", path: "/admin/checkin" },
     { icon: Settings, label: "Cài đặt", path: "/admin/settings" },
   ];
 

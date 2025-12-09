@@ -1,4 +1,4 @@
-﻿const { createClient } = require("@supabase/supabase-js");
+const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
@@ -203,6 +203,15 @@ exports.getRoomById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // // THÊM PHÂN QUYỀN
+    //     const userRole = req.user?.role;
+    //     if (!["staff", "admin"].includes(userRole)) {
+    //       return res.status(403).json({
+    //         success: false,
+    //         message: "Chỉ nhân viên mới có quyền xem thông tin phòng"
+    //       });
+    //     }
+    //
     const { data: room, error } = await supabase
       .from("rooms")
       .select(
@@ -241,8 +250,112 @@ exports.getRoomById = async (req, res) => {
     });
   }
 };
+
+// 6. GET /api/v1/reports/room-status
+// Báo cáo tình trạng phòng hôm nay
+// =====================
+exports.getRoomReport = async (req, res) => {
+  try {
+    // THÊM PHÂN QUYỀN
+    const userRole = req.user?.role;
+    if (!["staff", "admin"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ nhân viên mới có quyền xem báo cáo",
+      });
+    }
+
+    const today = new Date();
+    // Chuyển về định dạng YYYY-MM-DD để so sánh trong DB
+    const todayStr = today.toISOString().split("T")[0];
+
+    // 1. Lấy tổng quan danh sách phòng
+    const { data: allRooms, error: roomError } = await supabase
+      .from("rooms")
+      .select("id, status, room_type_id");
+
+    if (roomError) throw roomError;
+
+    // 2. Đếm theo trạng thái phòng (Status cứng trong bảng rooms)
+    const totalRooms = allRooms.length;
+    const maintenanceRooms = allRooms.filter(
+      (r) => r.status === "maintenance"
+    ).length;
+
+    // 3. Lấy các Booking liên quan đến hôm nay
+    // - Check-in hôm nay
+    // - Check-out hôm nay
+    // - Đang ở (Checked-in) hoặc Đã đặt (Confirmed) mà thời gian bao trùm hôm nay
+    const { data: bookings, error: bookingError } = await supabase
+      .from("bookings")
+      .select("id, status, check_in_date, check_out_date, room_id")
+      .in("status", ["confirmed", "checked_in", "pending"]) // Chỉ quan tâm các đơn hoạt động
+      .or(
+        `check_in_date.eq.${todayStr},check_out_date.eq.${todayStr},and(check_in_date.lte.${todayStr},check_out_date.gte.${todayStr})`
+      );
+
+    if (bookingError) throw bookingError;
+
+    // --- XỬ LÝ SỐ LIỆU ---
+
+    // Khách đến hôm nay (Check-in Today)
+    const arrivingToday = bookings.filter(
+      (b) =>
+        b.check_in_date === todayStr &&
+        ["confirmed", "pending"].includes(b.status)
+    ).length;
+
+    // Khách đi hôm nay (Check-out Today)
+    const departingToday = bookings.filter(
+      (b) => b.check_out_date === todayStr && b.status === "checked_in"
+    ).length;
+
+    // Phòng đang có khách (Occupied)
+    // Là các booking có status 'checked_in' VÀ ngày hiện tại nằm trong khoảng ở
+    const occupiedRooms = bookings.filter(
+      (b) =>
+        b.status === "checked_in" &&
+        b.check_in_date <= todayStr &&
+        b.check_out_date >= todayStr
+    ).length;
+
+    // Phòng trống sẵn sàng đón khách (Available)
+    // = Tổng - (Bảo trì + Đang ở + Sắp đến check-in)
+    // Công thức này chỉ mang tính tương đối, tùy nghiệp vụ
+    const availableToday = totalRooms - maintenanceRooms - occupiedRooms;
+
+    return res.json({
+      success: true,
+      message: "Lấy báo cáo tình trạng phòng thành công",
+      data: {
+        date: todayStr,
+        summary: {
+          total_rooms: totalRooms,
+          available_rooms: availableToday, // Phòng trống
+          maintenance_rooms: maintenanceRooms, // Đang sửa
+          occupied_rooms: occupiedRooms, // Đang có khách
+        },
+        activity: {
+          arriving_today: arrivingToday, // Sắp đến
+          departing_today: departingToday, // Sắp đi
+        },
+      },
+    });
+  } catch (err) {
+    console.error("Report error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
 exports.getRooms = async (req, res) => {
   try {
+    // THÊM PHÂN QUYỀN
+    // const userRole = req.user?.role;
+    // if (!["staff", "admin"].includes(userRole)) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Chỉ nhân viên mới có quyền xem danh sách phòng"
+    //   });
+    // }
     const { type, status, page = 1, limit = 10 } = req.query;
 
     // Tính phân trang
@@ -297,6 +410,14 @@ exports.getRooms = async (req, res) => {
 // --- 2. POST: Tạo phòng mới ---
 exports.createRoom = async (req, res) => {
   try {
+    // THÊM PHÂN QUYỀN
+    const userRole = req.user?.role;
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền tạo phòng",
+      });
+    }
     const { room_number, room_type_id, status = "available", note } = req.body;
 
     // Validate
@@ -341,6 +462,15 @@ exports.createRoom = async (req, res) => {
 // --- 3. PUT: Cập nhật thông tin phòng ---
 exports.updateRoom = async (req, res) => {
   try {
+    // THÊM PHÂN QUYỀN
+    const userRole = req.user?.role;
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền cập nhật phòng",
+      });
+    }
+
     const { id } = req.params;
     const { room_number, room_type_id, note } = req.body;
 
@@ -367,6 +497,15 @@ exports.updateRoom = async (req, res) => {
 // --- 4. PUT: Cập nhật TRẠNG THÁI phòng (API riêng biệt) ---
 exports.updateRoomStatus = async (req, res) => {
   try {
+    // THÊM PHÂN QUYỀN
+    const userRole = req.user?.role;
+    if (!["staff", "admin"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ nhân viên mới có quyền cập nhật trạng thái phòng",
+      });
+    }
+
     const { id } = req.params;
     const { status } = req.body; // available, occupied, maintenance, cleaning
 
@@ -400,6 +539,15 @@ exports.updateRoomStatus = async (req, res) => {
 // --- 5. DELETE: Xóa phòng ---
 exports.deleteRoom = async (req, res) => {
   try {
+    // THÊM PHÂN QUYỀN
+    const userRole = req.user?.role;
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ admin mới có quyền xóa phòng",
+      });
+    }
+
     const { id } = req.params;
 
     // Kiểm tra ràng buộc (nếu phòng đang có booking hoặc rental active thì ko cho xóa)
