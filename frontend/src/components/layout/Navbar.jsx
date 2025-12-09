@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaUserCircle, FaSignOutAlt, FaUser } from "react-icons/fa";
+import { FaUserCircle, FaSignOutAlt } from "react-icons/fa";
 import { useAuthContext } from "../../features/context/AuthContext.jsx";
-import e from "cors";
-import { User, LogOut, History, CalendarCheck } from "lucide-react"; // Import icon cho đẹp
+import { User, History, CalendarCheck } from "lucide-react";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false); // State quản lý dropdown
 
-  // Lấy thông tin user và hàm logout từ Context
   const { user, logout } = useAuthContext();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -37,7 +35,7 @@ export const Navbar = () => {
   const handleLogout = () => {
     logout();
     setShowDropdown(false);
-    navigate("/"); // Về trang chủ sau khi đăng xuất
+    navigate("/");
   };
 
   return (
@@ -76,13 +74,11 @@ export const Navbar = () => {
         <div className="flex items-center gap-6 font-medium text-gray-800">
           {/* --- LOGIC HIỂN THỊ USER / LOGIN --- */}
           {user ? (
-            // TRƯỜNG HỢP ĐÃ ĐĂNG NHẬP
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowDropdown(!showDropdown)}
                 className="flex items-center gap-2 hover:text-blue-500 transition focus:outline-none"
               >
-                {/* Avatar (Có thể thay bằng ảnh thật của user nếu có) */}
                 <FaUserCircle className="text-2xl" />
                 <span className="max-w-[100px] truncate">
                   {user.full_name || "User"}
@@ -91,47 +87,57 @@ export const Navbar = () => {
 
               {/* Dropdown Menu */}
               {showDropdown && (
-                <div className="absolute right-0 mt-3 w-[190px] bg-white rounded-xl shadow-lg border border-gray-100 py-2 overflow-hidden animate-fade-in-down">
+                <div className="absolute right-0 mt-3 w-[220px] bg-white rounded-xl shadow-lg border border-gray-100 py-2 overflow-hidden animate-fade-in-down">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <p className="text-sm text-gray-500">
-                      Xin chào,{user.full_name}
+                      Xin chào, <strong>{user.full_name}</strong>
+                    </p>
+                    <p className="text-xs text-gray-400 uppercase mt-1">
+                      {user.role}
                     </p>
                   </div>
 
                   <Link
                     to="/my-bookings"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => setShowDropdown(false)}
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
                   >
                     <History size={16} />
                     Lịch sử đặt phòng
                   </Link>
 
-                  {/* Nút Profile (nếu có) */}
                   <Link
                     to="/profile"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => setShowDropdown(false)}
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
                   >
                     <User size={16} />
                     Hồ sơ cá nhân
                   </Link>
 
-                  {/* Nút Admin (chỉ hiện nếu là admin/staff) */}
+                  {/* --- SỬA LOGIC Ở ĐÂY --- */}
                   {["admin", "staff"].includes(user.role) && (
                     <Link
-                      to="/admin/dashboard"
-                      onClick={() => setIsOpen(false)}
+                      // Kiểm tra role để điều hướng đúng trang Dashboard
+                      to={
+                        user.role === "admin"
+                          ? "/admin/dashboard"
+                          : "/staff/dashboard"
+                      }
+                      onClick={() => setShowDropdown(false)}
                       className="flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition"
                     >
                       <CalendarCheck size={16} />
-                      Trang quản trị
+                      {/* Hiển thị text khác nhau cho dễ phân biệt (Tùy chọn) */}
+                      {user.role === "admin"
+                        ? "Trang quản trị Admin"
+                        : "Trang làm việc Staff"}
                     </Link>
                   )}
 
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition text-left"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition text-left border-t border-gray-100 mt-1"
                   >
                     <FaSignOutAlt /> Đăng xuất
                   </button>
@@ -139,14 +145,13 @@ export const Navbar = () => {
               )}
             </div>
           ) : (
-            // TRƯỜNG HỢP CHƯA ĐĂNG NHẬP
             <>
               <Link to="/auth" className="hover:text-blue-500 transition">
                 Login
               </Link>
               <Link
                 to="/auth"
-                state={{ mode: "signup" }} // Truyền state để mở tab Sign up (cần xử lý bên AuthPage)
+                state={{ mode: "signup" }}
                 className="px-5 py-2 border-2 border-gray-800 rounded-lg hover:bg-gray-800 hover:text-white transition"
               >
                 Sign up
@@ -165,5 +170,5 @@ export const Navbar = () => {
     </nav>
   );
 };
+
 export default Navbar;
-//layout/Navbar.jsx
