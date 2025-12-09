@@ -24,7 +24,7 @@ import RoomManagementPage from "./features/admin/RoomManagementPage";
 import BookingManagementPage from "./features/admin/BookingManagementPage";
 import CustomerManagementPage from "./features/admin/CustomerManagementPage";
 import StaffManagementPage from "./features/admin/StaffManagementPage";
-
+import ServiceManagementPage from "./features/admin/ServiceManagementPage";
 // Staff Pages
 import StaffDashboard from "./features/staff/StaffDashboard";
 import StaffBookingPage from "./features/staff/StaffBookingPage";
@@ -67,6 +67,7 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
 
             {/* Path con không cần dấu / ở đầu */}
+            <Route path="services" element={<ServiceManagementPage />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="rooms" element={<RoomManagementPage />} />
             <Route path="bookings" element={<BookingManagementPage />} />

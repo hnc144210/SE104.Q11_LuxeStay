@@ -1,7 +1,10 @@
 // backend/src/routes/admin/serviceRoutes.js
 const express = require("express");
 const router = express.Router();
-const { authenticate: protect, authorize: restrictTo } = require("../../../middleware/auth");
+const {
+  authenticate: protect,
+  authorize: restrictTo,
+} = require("../../../middleware/auth");
 const serviceController = require("../../../controllers/serviceController");
 
 router
@@ -14,9 +17,19 @@ router
   .get(protect, restrictTo("admin"), serviceController.getServiceById)
   .put(protect, restrictTo("admin"), serviceController.updateService)
   .delete(protect, restrictTo("admin"), serviceController.deleteService);
-
+router.post(
+  "/request",
+  protect,
+  restrictTo("admin", "staff"),
+  serviceController.requestService
+);
 
 // Admin có thể soft delete (bật/tắt trạng thái)
-router.patch("/:id/toggle-status", protect, restrictTo("admin"), serviceController.toggleServiceStatus);
+router.patch(
+  "/:id/toggle-status",
+  protect,
+  restrictTo("admin"),
+  serviceController.toggleServiceStatus
+);
 
 module.exports = router;

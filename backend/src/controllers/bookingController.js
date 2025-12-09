@@ -508,7 +508,7 @@ exports.getBookingsForStaffAdmin = async (req, res) => {
         message: "Lỗi khi lấy danh sách booking",
       });
     }
-
+    console.log("Retrieved bookings:", bookings);
     return res.json({
       success: true,
       message: "Lấy danh sách booking thành công",
@@ -598,17 +598,26 @@ exports.cancelBookingByStaffAdmin = async (req, res) => {
 exports.updateBooking = async (req, res) => {
   try {
     const { id } = req.params;
-    const { room_id, check_in_date, check_out_date, status, deposit_amount, num_guests } = req.body;
+    const {
+      room_id,
+      check_in_date,
+      check_out_date,
+      status,
+      deposit_amount,
+      num_guests,
+    } = req.body;
 
     // 1. Kiểm tra booking tồn tại
     const { data: booking, error: findError } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('id', id)
+      .from("bookings")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (findError || !booking) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy booking' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy booking" });
     }
 
     // 2. Nếu đổi phòng hoặc đổi ngày -> Check trùng lịch
@@ -618,20 +627,32 @@ exports.updateBooking = async (req, res) => {
       const newCheckOut = check_out_date || booking.check_out_date;
 
       if (new Date(newCheckOut) <= new Date(newCheckIn)) {
-        return res.status(400).json({ success: false, message: 'Ngày check-out phải sau check-in' });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Ngày check-out phải sau check-in",
+          });
       }
 
       // Check trùng (loại trừ chính booking này ra)
       const { data: conflicts } = await supabase
-        .from('bookings')
-        .select('id')
-        .eq('room_id', newRoomId)
-        .neq('id', id)
-        .in('status', ['pending', 'confirmed', 'checked_in'])
-        .or(`and(check_in_date.lte.${newCheckOut},check_out_date.gte.${newCheckIn})`);
+        .from("bookings")
+        .select("id")
+        .eq("room_id", newRoomId)
+        .neq("id", id)
+        .in("status", ["pending", "confirmed", "checked_in"])
+        .or(
+          `and(check_in_date.lte.${newCheckOut},check_out_date.gte.${newCheckIn})`
+        );
 
       if (conflicts && conflicts.length > 0) {
-        return res.status(400).json({ success: false, message: 'Phòng đã bị đặt trong khoảng thời gian mới' });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Phòng đã bị đặt trong khoảng thời gian mới",
+          });
       }
     }
 
@@ -645,19 +666,22 @@ exports.updateBooking = async (req, res) => {
     if (num_guests) updates.num_guests = num_guests;
 
     const { data: updated, error: updateError } = await supabase
-      .from('bookings')
+      .from("bookings")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
     if (updateError) throw updateError;
 
-    return res.json({ success: true, message: 'Cập nhật booking thành công', data: updated });
-
+    return res.json({
+      success: true,
+      message: "Cập nhật booking thành công",
+      data: updated,
+    });
   } catch (err) {
-    console.error('Update booking error:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server' });
+    console.error("Update booking error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
 
@@ -668,50 +692,69 @@ exports.extendBooking = async (req, res) => {
     const { new_check_out_date } = req.body;
 
     if (!new_check_out_date) {
-      return res.status(400).json({ success: false, message: 'Cần nhập ngày check-out mới' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Cần nhập ngày check-out mới" });
     }
 
     const { data: booking, error: findError } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('id', id)
+      .from("bookings")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (findError || !booking) {
-      return res.status(404).json({ success: false, message: 'Booking không tồn tại' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking không tồn tại" });
     }
 
     if (new Date(new_check_out_date) <= new Date(booking.check_out_date)) {
-      return res.status(400).json({ success: false, message: 'Ngày mới phải sau ngày check-out cũ' });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Ngày mới phải sau ngày check-out cũ",
+        });
     }
 
     // Check trùng lịch cho khoảng thời gian gia hạn thêm
     const { data: conflicts } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('room_id', booking.room_id)
-      .neq('id', id)
-      .in('status', ['pending', 'confirmed', 'checked_in'])
-      .or(`and(check_in_date.lte.${new_check_out_date},check_out_date.gte.${booking.check_out_date})`);
+      .from("bookings")
+      .select("id")
+      .eq("room_id", booking.room_id)
+      .neq("id", id)
+      .in("status", ["pending", "confirmed", "checked_in"])
+      .or(
+        `and(check_in_date.lte.${new_check_out_date},check_out_date.gte.${booking.check_out_date})`
+      );
 
     if (conflicts && conflicts.length > 0) {
-      return res.status(400).json({ success: false, message: 'Phòng đã có người đặt trong những ngày gia hạn thêm' });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Phòng đã có người đặt trong những ngày gia hạn thêm",
+        });
     }
 
     const { data: updated, error: updateError } = await supabase
-      .from('bookings')
+      .from("bookings")
       .update({ check_out_date: new_check_out_date })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
     if (updateError) throw updateError;
 
-    return res.json({ success: true, message: 'Gia hạn phòng thành công', data: updated });
-
+    return res.json({
+      success: true,
+      message: "Gia hạn phòng thành công",
+      data: updated,
+    });
   } catch (err) {
-    console.error('Extend booking error:', err);
-    return res.status(500).json({ success: false, message: 'Lỗi server' });
+    console.error("Extend booking error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
 // src/controllers/bookingController.js

@@ -48,46 +48,45 @@ export const calculateWalkInPrice = async (data) => {
   );
   return response.data;
 };
-
+export const createStaffCustomer = async (data) => {
+  // data: { full_name, identity_card, phone_number, ... }
+  // Endpoint này trỏ về router.post("/", ...) trong customerRoutes.js của Staff
+  const response = await axios.post(
+    `${BASE_URL}/customers`,
+    data,
+    getAuthHeaders()
+  );
+  return response.data;
+};
 // --- FETCH DATA ---
 
 // Lấy danh sách Booking dành cho Staff
 export const getStaffBookings = async (params) => {
-  const response = await axios.get(`${BASE_URL}/bookings`, {
-    headers: getAuthHeaders().headers, // Gọi lại hàm helper để lấy header
-    params: params,
-  });
+  const response = await axios.get(
+    `${BASE_URL}/bookings`,
+    getAuthHeaders() // Gọi lại hàm helper để lấy header
+  );
   return response.data;
 };
 
 // Lấy danh sách Phòng
 export const getStaffRooms = async (params) => {
-  const response = await axios.get(`${BASE_URL}/rooms`, {
-    headers: getAuthHeaders().headers,
-    params: params,
-  });
+  const response = await axios.get(`${BASE_URL}/rooms`, getAuthHeaders());
   return response.data;
 };
 
 // Lấy danh sách Khách hàng
 export const getStaffCustomers = async (params) => {
-  const response = await axios.get(`${BASE_URL}/customers`, {
-    headers: getAuthHeaders().headers,
-    params: params,
-  });
+  const response = await axios.get(`${BASE_URL}/customers`, getAuthHeaders());
   return response.data;
 };
-export const getOccupiedRooms = async () => {
-  const response = await axios.get(`${BASE_URL}/rooms`, {
-    headers: getAuthHeaders().headers,
-    params: { status: "occupied" }, // Chỉ lấy phòng đang thuê
-  });
+export const getActiveRentals = async () => {
+  const response = await axios.get(
+    `${BASE_URL}/checkout/rentals`,
+    getAuthHeaders()
+  );
   return response.data;
 };
-
-// 2. Lấy thông tin chi tiết Rental hiện tại của phòng (để xem trước khi check-out)
-// Lưu ý: Bạn cần đảm bảo Backend có API lấy rental theo room_id hoặc rental_id active
-// Tạm thời ta sẽ dùng list rooms để lấy rental_id, sau đó gọi checkout
 
 // 3. Thực hiện Check-out
 export const performCheckOut = async (checkOutData) => {
@@ -98,5 +97,16 @@ export const performCheckOut = async (checkOutData) => {
     getAuthHeaders()
   );
   return response.data; // Backend trả về { success, data: { invoice: ... } }
+};
+export const getInvoiceById = async (id) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/finance/invoices/${id}`,
+      getAuthHeaders()
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
 };
 //src/features/staff/api/staffApi.jsx

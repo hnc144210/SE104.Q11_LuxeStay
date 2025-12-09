@@ -1,5 +1,8 @@
 const { createClient } = require("@supabase/supabase-js");
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // GET /api/invoices/:id
 exports.getInvoiceById = async (req, res) => {
@@ -8,20 +11,31 @@ exports.getInvoiceById = async (req, res) => {
 
     const { data: invoice, error } = await supabase
       .from("invoices")
-      .select(`
+      .select(
+        `
         *,
         customer:customers (full_name, phone_number, address),
         staff:profiles (full_name),
         rental:rentals (
           start_date, end_date,
-          room:rooms (room_number, room_types(name, base_price))
+          room:rooms (room_number, room_types(name, base_price)),
+          service_usage (
+            quantity,
+            total_price,
+            service:services (name, unit, price)
+          )
         )
-      `)
+      `
+      )
       .eq("id", id)
       .single();
 
+    console.log("Fetched invoice:", invoice);
+
     if (error || !invoice) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy hóa đơn" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy hóa đơn" });
     }
 
     return res.json({ success: true, data: invoice });
@@ -30,3 +44,4 @@ exports.getInvoiceById = async (req, res) => {
     return res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
+//src/controllers/invoiceController.js

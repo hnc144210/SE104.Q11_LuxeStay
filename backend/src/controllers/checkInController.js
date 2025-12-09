@@ -121,10 +121,6 @@ exports.checkInFromBooking = async (req, res) => {
       return errorResponse(res, 404, "Không tìm thấy thông tin phòng");
     }
 
-    if (booking.room.status !== "available") {
-      return errorResponse(res, 400, "Phòng không khả dụng để check-in");
-    }
-
     // Tính giá
     const nights = calculateNights(
       booking.check_in_date,
