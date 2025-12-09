@@ -12,8 +12,15 @@ const BookingCheckIn = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const res = await getStaffBookings({ status: "confirmed" });
-      setBookings(res.data || []);
+      const res = await getStaffBookings();
+      const allBookings = res.data || [];
+
+      // 2. Lọc phía Client: Chỉ lấy pending HOẶC confirmed
+      const validBookings = allBookings.filter(
+        (b) => b.status === "pending" || b.status === "confirmed"
+      );
+      console.log("Valid Bookings for Check-In:", validBookings);
+      setBookings(validBookings);
     } catch (err) {
       console.error("Lỗi fetch booking:", err);
     } finally {

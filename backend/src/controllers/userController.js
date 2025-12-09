@@ -1,4 +1,4 @@
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require("../utils/supabaseClient");
 
 exports.createCustomer = async (req, res) => {
   try {
@@ -11,27 +11,33 @@ exports.createCustomer = async (req, res) => {
       address,
     } = req.body;
 
-    // kiểm tra quyền
+    // 1. Kiểm tra quyền
     const userRole = req.user?.role;
     if (!["staff", "admin"].includes(userRole)) {
-      return errorResponse(
-        res,
-        403,
-        "Chỉ nhân viên mới có quyền tạo hồ sơ khách hàng"
-      );
+      // SỬA: Thay errorResponse bằng response trực tiếp
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ nhân viên mới có quyền tạo hồ sơ khách hàng",
+      });
     }
 
-    // validate bắt buộc
+    // 2. Validate bắt buộc
     if (!identityCard || !fullName || !type || !phone) {
-      return errorResponse(res, 400, "Thiếu thông tin bắt buộc");
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin bắt buộc (Họ tên, CMND, Loại khách, SĐT)",
+      });
     }
 
-    // phone
+    // 3. Validate phone
     if (!/^[0-9]{10,11}$/.test(phone)) {
-      return errorResponse(res, 400, "Số điện thoại phải có 10-11 chữ số");
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại phải có 10-11 chữ số",
+      });
     }
 
-    // Kiểm tra khách hàng tồn tại qua identity_card
+    // 4. Kiểm tra khách hàng tồn tại qua identity_card
     const { data: existingCustomer, error: findErr } = await supabase
       .from("customers")
       .select("*")
@@ -41,7 +47,7 @@ exports.createCustomer = async (req, res) => {
     if (findErr) throw findErr;
 
     if (existingCustomer) {
-      // Cập nhật thông tin nếu có
+      // Cập nhật thông tin nếu khách hàng đã tồn tại
       const updates = {};
       if (fullName && fullName !== existingCustomer.full_name)
         updates.full_name = fullName;
@@ -77,7 +83,8 @@ exports.createCustomer = async (req, res) => {
         isExisting: true,
       });
     }
-    // tạo khách hàng
+
+    // 5. Tạo khách hàng mới
     const defaultAddress = type === "domestic" ? "Vietnam" : address ?? "";
     const { data: newCustomer, error: insertErr } = await supabase
       .from("customers")
@@ -93,7 +100,6 @@ exports.createCustomer = async (req, res) => {
       .single();
 
     if (insertErr) {
-      // xử lý duplicate từ DB error
       if (insertErr.code === "23505") {
         return res.status(409).json({
           success: false,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -10,65 +10,118 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
+  Legend,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
-
-// --- DỮ LIỆU GIẢ LẬP (MOCK DATA) ---
-const revenueData = [
-  { name: "01", revenue: 4000 },
-  { name: "02", revenue: 3000 },
-  { name: "03", revenue: 5000 },
-  { name: "04", revenue: 2780 },
-  { name: "05", revenue: 6890 },
-  { name: "06", revenue: 6390 },
-  { name: "07", revenue: 3490 },
-  { name: "08", revenue: 4490 },
-  { name: "09", revenue: 5490 },
-  { name: "10", revenue: 3490 },
-];
-
-const bookingTimeData = [
-  { name: "Afternoon", value: 400, color: "#4F46E5" }, // Indigo
-  { name: "Evening", value: 300, color: "#818CF8" }, // Light Indigo
-  { name: "Morning", value: 300, color: "#C7D2FE" }, // Very Light Indigo
-];
-
-const ratingData = [
-  { name: "Quality", value: 85, color: "#8B5CF6" }, // Purple
-  { name: "Attitude", value: 85, color: "#F59E0B" }, // Orange
-  { name: "Responsive", value: 92, color: "#06B6D4" }, // Cyan
-];
+import {
+  TrendingUp,
+  Users,
+  LogIn,
+  LogOut,
+  Loader2,
+  DollarSign,
+  Calendar,
+} from "lucide-react";
+import { getDashboardStats } from "./api/adminApi"; // Import API mới
 
 const DashboardPage = () => {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const res = await getDashboardStats();
+        if (res.success) {
+          setData(res.data);
+        }
+      } catch (error) {
+        console.error("Lỗi tải dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={40} />
+      </div>
+    );
+  }
+
+  // Nếu không có dữ liệu
+  if (!data) return <div className="p-6">Không có dữ liệu báo cáo.</div>;
+
+  // Destructuring dữ liệu từ Backend cho gọn
+  const { cards, charts } = data;
+
   return (
     <div className="space-y-6">
-      {/* 1. TOP ROW: REVENUE CHART & BOOKING TIME */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* REVENUE CHART (Chiếm 2/3) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h3 className="font-bold text-gray-800 text-lg">
-                Doanh thu (Revenue)
-              </h3>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                7.852.000 đ
-              </p>
-              <div className="flex items-center gap-1 text-green-500 text-sm font-medium mt-1">
-                <ArrowUpRight size={16} />
-                <span>2.1% so với tuần trước</span>
-              </div>
-            </div>
-            <button className="text-blue-600 text-sm font-semibold hover:underline">
-              Xem báo cáo
-            </button>
-          </div>
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Tổng quan hệ thống
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Cập nhật số liệu kinh doanh mới nhất hôm nay
+          </p>
+        </div>
+        <div className="text-right hidden sm:block bg-white px-4 py-2 rounded-lg border border-gray-100 shadow-sm">
+          <span className="text-sm font-bold text-gray-600 flex items-center gap-2">
+            <Calendar size={16} /> {new Date().toLocaleDateString("vi-VN")}
+          </span>
+        </div>
+      </div>
 
-          <div className="h-64">
+      {/* --- PHẦN 1: 4 THẺ KPI --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Card 1: Doanh thu hôm nay */}
+        <StatCard
+          title="Doanh thu hôm nay"
+          value={cards.revenueToday.toLocaleString() + " đ"}
+          icon={DollarSign}
+          color="bg-blue-50 text-blue-600"
+        />
+
+        {/* Card 2: Tỉ lệ lấp đầy */}
+        <StatCard
+          title="Tỉ lệ lấp đầy"
+          value={`${cards.occupancyRate}%`}
+          subText={`${cards.occupiedRooms} / ${cards.totalRooms} phòng đang có khách`}
+          icon={TrendingUp}
+          color="bg-green-50 text-green-600"
+        />
+
+        {/* Card 3: Khách đến (Arrivals) */}
+        <StatCard
+          title="Khách đến (Check-in)"
+          value={cards.checkInsToday}
+          icon={LogIn}
+          color="bg-purple-50 text-purple-600"
+        />
+
+        {/* Card 4: Khách đi (Departures) */}
+        <StatCard
+          title="Khách đi (Check-out)"
+          value={cards.checkOutsToday}
+          icon={LogOut}
+          color="bg-orange-50 text-orange-600"
+        />
+      </div>
+
+      {/* --- PHẦN 2: BIỂU ĐỒ DOANH THU & CẤU TRÚC KHÁCH --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* CHART 1: DOANH THU 7 NGÀY (Chiếm 2/3) */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-800 text-lg mb-6">
+            Doanh thu 7 ngày gần nhất
+          </h3>
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenueData} barSize={12}>
+              <BarChart data={charts.revenueLast7Days} barSize={40}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
@@ -78,172 +131,114 @@ const DashboardPage = () => {
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#9CA3AF", fontSize: 12 }}
+                  tick={{ fill: "#6B7280", fontSize: 12 }}
                   dy={10}
                 />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#6B7280", fontSize: 12 }}
+                  tickFormatter={(value) => `${value / 1000000}M`} // Rút gọn số liệu trục Y
+                />
                 <Tooltip
+                  formatter={(value) =>
+                    new Intl.NumberFormat("vi-VN").format(value) + " đ"
+                  }
                   contentStyle={{
-                    backgroundColor: "#1F2937",
-                    color: "#fff",
                     borderRadius: "8px",
                     border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                   }}
                   cursor={{ fill: "#F3F4F6" }}
                 />
-                <Bar dataKey="revenue" fill="#4F46E5" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* BOOKING TIME (Donut Chart) */}
+        {/* CHART 2: LOẠI KHÁCH (PIE CHART) */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-gray-800">Thời gian đặt</h3>
-            <MoreHorizontal
-              size={20}
-              className="text-gray-400 cursor-pointer"
-            />
-          </div>
-
-          <div className="flex-grow flex items-center justify-center relative">
-            {/* Tooltip giả lập ở giữa */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center">
-                <span className="block text-2xl font-bold text-gray-800">
-                  1000
-                </span>
-                <span className="text-xs text-gray-500">Booking</span>
-              </div>
+          <h3 className="font-bold text-gray-800 text-lg mb-2">
+            Phân loại khách
+          </h3>
+          <div className="flex-1 min-h-[250px] relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={charts.customerTypes}
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {charts.customerTypes.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Label giữa biểu đồ */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
+              <span className="text-gray-400 text-sm font-medium">Tỷ lệ</span>
             </div>
-
-            <div className="w-48 h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={bookingTimeData}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {bookingTimeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="mt-4 flex justify-between text-center">
-            {bookingTimeData.map((item) => (
-              <div key={item.name}>
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  ></div>
-                  <span className="text-xs text-gray-500">{item.name}</span>
-                </div>
-                <span className="font-bold text-sm">{item.value / 10}%</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>
 
-      {/* 2. BOTTOM ROW: RATING, DESTINATIONS, TRENDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* RATING (Bubbles Style - Mockup bằng HTML/CSS đơn giản) */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-800 mb-2">Đánh giá của bạn</h3>
-          <p className="text-gray-400 text-xs mb-6">
-            Tổng hợp từ phản hồi khách hàng
-          </p>
-
-          <div className="relative h-48 flex items-center justify-center">
-            {/* Giả lập các vòng tròn như hình */}
-            <div className="absolute top-0 left-10 w-24 h-24 rounded-full bg-purple-500 text-white flex flex-col items-center justify-center shadow-lg opacity-90 z-10">
-              <span className="font-bold text-xl">85%</span>
-              <span className="text-xs">Chất lượng</span>
-            </div>
-            <div className="absolute top-8 right-6 w-28 h-28 rounded-full bg-orange-400 text-white flex flex-col items-center justify-center shadow-lg opacity-90 z-0">
-              <span className="font-bold text-xl">85%</span>
-              <span className="text-xs">Thái độ</span>
-            </div>
-            <div className="absolute bottom-0 left-16 w-24 h-24 rounded-full bg-cyan-500 text-white flex flex-col items-center justify-center shadow-lg opacity-90 z-20">
-              <span className="font-bold text-xl">92%</span>
-              <span className="text-xs">Phản hồi</span>
-            </div>
-          </div>
-        </div>
-
-        {/* MOST DESTINATIONS (List) */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-800 mb-6">Địa điểm hot nhất</h3>
-          <div className="space-y-5">
-            {[
-              { name: "Đà Lạt", price: "450.000", bg: "bg-gray-200" },
-              { name: "Nha Trang", price: "750.000", bg: "bg-blue-100" },
-              { name: "Đà Nẵng", price: "450.000", bg: "bg-green-100" },
-              { name: "Khánh Hòa", price: "450.000", bg: "bg-yellow-100" },
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full ${item.bg}`}></div>
-                  <span className="font-medium text-gray-700">{item.name}</span>
+      {/* --- PHẦN 3: TOP LOẠI PHÒNG BÁN CHẠY --- */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="font-bold text-gray-800 text-lg mb-4">
+          Top loại phòng được đặt nhiều nhất (30 ngày)
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {charts.topRoomTypes.map((room, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between p-4 border border-gray-100 rounded-xl bg-gray-50"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                    idx === 0
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-gray-200 text-gray-600"
+                  }`}
+                >
+                  #{idx + 1}
                 </div>
-                <span className="text-sm font-bold text-gray-400">
-                  {item.price} IDR
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* BOOKING TREND (Line Chart) */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-bold text-gray-800">Lượt đặt phòng</h3>
-              <p className="text-2xl font-bold text-gray-900 mt-1">2.568</p>
-              <div className="flex items-center gap-1 text-red-500 text-sm font-medium mt-1">
-                <ArrowDownRight size={16} />
-                <span>2.1% so với tuần trước</span>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">{room.name}</p>
+                  <p className="text-xs text-gray-500">{room.value} lượt đặt</p>
+                </div>
               </div>
             </div>
-            <button className="text-blue-600 text-xs border border-blue-100 px-3 py-1 rounded-full">
-              Report
-            </button>
-          </div>
-
-          <div className="h-40 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueData}>
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#4F46E5"
-                  strokeWidth={3}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#E5E7EB"
-                  strokeWidth={3}
-                  dot={false}
-                  strokeDasharray="5 5"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          ))}
+          {charts.topRoomTypes.length === 0 && (
+            <p className="text-gray-400 text-sm">Chưa có dữ liệu.</p>
+          )}
         </div>
       </div>
     </div>
   );
 };
+
+// Component con: Thẻ thống kê nhỏ
+const StatCard = ({ title, value, subText, icon: Icon, color }) => (
+  <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-full">
+    <div className="flex justify-between items-start mb-2">
+      <div>
+        <p className="text-gray-500 text-sm font-medium">{title}</p>
+        <h3 className="text-2xl font-bold text-gray-800 mt-1">{value}</h3>
+      </div>
+      <div className={`p-3 rounded-xl ${color} bg-opacity-10`}>
+        <Icon className="w-6 h-6" />
+      </div>
+    </div>
+    {subText && <p className="text-xs text-gray-400 mt-2">{subText}</p>}
+  </div>
+);
 
 export default DashboardPage;

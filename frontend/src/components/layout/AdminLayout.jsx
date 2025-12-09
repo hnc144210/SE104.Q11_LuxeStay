@@ -16,7 +16,8 @@ import {
   LogOut,
   Bell,
   Search,
-  UserCog, // <--- 1. Import thêm icon này cho Staff
+  UserCog,
+  Coffee, // <--- 1. Import thêm icon này cho Staff
 } from "lucide-react";
 import { useAuthContext } from "../../features/context/AuthContext";
 
@@ -34,13 +35,12 @@ const AdminLayout = () => {
   const navItems = [
     { icon: LayoutDashboard, label: "Tổng quan", path: "/admin/dashboard" },
     { icon: BedDouble, label: "Quản lý Phòng", path: "/admin/rooms" },
-    { icon: CalendarCheck, label: "Quản lý Booking", path: "/admin/bookings" },
 
     // Thêm mục Nhân viên vào đây (Path khớp với App.js)
     { icon: UserCog, label: "Nhân viên", path: "/admin/staffs" },
 
     { icon: Users, label: "Khách hàng", path: "/admin/customers" },
-    { icon: LogIn, label: "Check In", path: "/admin/checkin" },
+    { icon: Coffee, label: "Dịch vụ", path: "/admin/services" },
     { icon: Settings, label: "Cài đặt", path: "/admin/settings" },
   ];
 

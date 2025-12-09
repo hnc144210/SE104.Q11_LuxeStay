@@ -9,22 +9,22 @@ const supabase = createClient(
 // Lấy danh sách dịch vụ
 // Quyền: staff, admin
 exports.getServices = async (req, res) => {
-try {
+  try {
     const userRole = req.user?.role;
 
     if (!["staff", "admin"].includes(userRole)) {
-    return res.status(403).json({
+      return res.status(403).json({
         success: false,
-        message: "Chỉ nhân viên mới có quyền xem danh sách dịch vụ"
-    });
+        message: "Chỉ nhân viên mới có quyền xem danh sách dịch vụ",
+      });
     }
 
     const {
-        is_active: isActive,
-        search,
-        page = 1,
-        limit = 20,
-        sortOrder = "desc"
+      is_active: isActive,
+      search,
+      page = 1,
+      limit = 20,
+      sortOrder = "desc",
     } = req.query;
 
     // Validate page và limit
@@ -33,20 +33,18 @@ try {
     const offset = (pageNum - 1) * limitNum;
 
     // Build query
-    let query = supabase
-    .from("services")
-    .select("*", { count: "exact" });
+    let query = supabase.from("services").select("*", { count: "exact" });
 
     // Filter theo is_active
     if (isActive !== undefined) {
-    const activeValue = isActive === "true" || isActive === true;
-    query = query.eq("is_active", activeValue);
+      const activeValue = isActive === "true" || isActive === true;
+      query = query.eq("is_active", activeValue);
     }
 
     // Search theo tên
     if (search && search.trim()) {
-    const searchTerm = search.trim();
-    query = query.ilike("name", `%${searchTerm}%`);
+      const searchTerm = search.trim();
+      query = query.ilike("name", `%${searchTerm}%`);
     }
 
     // Sorting
@@ -74,16 +72,15 @@ try {
         totalItems: count,
         itemsPerPage: limitNum,
         hasNextPage: pageNum < totalPages,
-        hasPrevPage: pageNum > 1
-      }
+        hasPrevPage: pageNum > 1,
+      },
     });
-
   } catch (error) {
     console.error("getServices error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -95,11 +92,11 @@ exports.getServiceById = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user?.role;
-    
+
     if (!["staff", "admin"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Chỉ nhân viên mới có quyền xem thông tin dịch vụ"
+        message: "Chỉ nhân viên mới có quyền xem thông tin dịch vụ",
       });
     }
 
@@ -108,7 +105,7 @@ exports.getServiceById = async (req, res) => {
     if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
-        message: "ID dịch vụ không hợp lệ"
+        message: "ID dịch vụ không hợp lệ",
       });
     }
 
@@ -124,22 +121,21 @@ exports.getServiceById = async (req, res) => {
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy dịch vụ"
+        message: "Không tìm thấy dịch vụ",
       });
     }
 
     return res.status(200).json({
       success: true,
       message: "Lấy thông tin dịch vụ thành công",
-      data: service
+      data: service,
     });
-
   } catch (error) {
     console.error("getServiceById error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -151,11 +147,11 @@ exports.createService = async (req, res) => {
   try {
     const { name, price, unit, is_active: isActive } = req.body;
     const userRole = req.user?.role;
-    
+
     if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Chỉ admin mới có quyền tạo dịch vụ"
+        message: "Chỉ admin mới có quyền tạo dịch vụ",
       });
     }
 
@@ -163,7 +159,7 @@ exports.createService = async (req, res) => {
     if (!name || !price) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin bắt buộc (name, price)"
+        message: "Thiếu thông tin bắt buộc (name, price)",
       });
     }
 
@@ -171,7 +167,7 @@ exports.createService = async (req, res) => {
     if (price <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Giá dịch vụ phải lớn hơn 0"
+        message: "Giá dịch vụ phải lớn hơn 0",
       });
     }
 
@@ -187,7 +183,7 @@ exports.createService = async (req, res) => {
     if (existing) {
       return res.status(409).json({
         success: false,
-        message: "Tên dịch vụ đã tồn tại"
+        message: "Tên dịch vụ đã tồn tại",
       });
     }
 
@@ -198,7 +194,7 @@ exports.createService = async (req, res) => {
         name: name.trim(),
         price,
         unit: unit || null,
-        is_active: isActive !== undefined ? isActive : true
+        is_active: isActive !== undefined ? isActive : true,
       })
       .select()
       .single();
@@ -208,15 +204,14 @@ exports.createService = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Tạo dịch vụ thành công",
-      data: service
+      data: service,
     });
-
   } catch (error) {
     console.error("createService error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -229,11 +224,11 @@ exports.updateService = async (req, res) => {
     const { id } = req.params;
     const { name, price, unit, is_active: isActive } = req.body;
     const userRole = req.user?.role;
-    
+
     if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Chỉ admin mới có quyền cập nhật dịch vụ"
+        message: "Chỉ admin mới có quyền cập nhật dịch vụ",
       });
     }
 
@@ -242,7 +237,7 @@ exports.updateService = async (req, res) => {
     if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
-        message: "ID dịch vụ không hợp lệ"
+        message: "ID dịch vụ không hợp lệ",
       });
     }
 
@@ -258,7 +253,7 @@ exports.updateService = async (req, res) => {
     if (!existingService) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy dịch vụ"
+        message: "Không tìm thấy dịch vụ",
       });
     }
 
@@ -269,7 +264,7 @@ exports.updateService = async (req, res) => {
       if (!name || name.trim() === "") {
         return res.status(400).json({
           success: false,
-          message: "Tên dịch vụ không được để trống"
+          message: "Tên dịch vụ không được để trống",
         });
       }
 
@@ -286,7 +281,7 @@ exports.updateService = async (req, res) => {
       if (duplicate) {
         return res.status(409).json({
           success: false,
-          message: "Tên dịch vụ đã tồn tại"
+          message: "Tên dịch vụ đã tồn tại",
         });
       }
 
@@ -297,7 +292,7 @@ exports.updateService = async (req, res) => {
       if (price <= 0) {
         return res.status(400).json({
           success: false,
-          message: "Giá dịch vụ phải lớn hơn 0"
+          message: "Giá dịch vụ phải lớn hơn 0",
         });
       }
       updates.price = price;
@@ -316,7 +311,7 @@ exports.updateService = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Không có thông tin nào thay đổi",
-        data: existingService
+        data: existingService,
       });
     }
 
@@ -333,15 +328,14 @@ exports.updateService = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Cập nhật dịch vụ thành công",
-      data: updatedService
+      data: updatedService,
     });
-
   } catch (error) {
     console.error("updateService error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -353,11 +347,11 @@ exports.toggleServiceStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user?.role;
-    
+
     if (!["staff", "admin"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Chỉ nhân viên mới có quyền thay đổi trạng thái dịch vụ"
+        message: "Chỉ nhân viên mới có quyền thay đổi trạng thái dịch vụ",
       });
     }
 
@@ -366,7 +360,7 @@ exports.toggleServiceStatus = async (req, res) => {
     if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
-        message: "ID dịch vụ không hợp lệ"
+        message: "ID dịch vụ không hợp lệ",
       });
     }
 
@@ -382,7 +376,7 @@ exports.toggleServiceStatus = async (req, res) => {
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy dịch vụ"
+        message: "Không tìm thấy dịch vụ",
       });
     }
 
@@ -400,18 +394,17 @@ exports.toggleServiceStatus = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: newStatus 
-        ? "Đã kích hoạt dịch vụ" 
+      message: newStatus
+        ? "Đã kích hoạt dịch vụ"
         : "Đã tắt dịch vụ (dịch vụ sẽ không khả dụng để yêu cầu)",
-      data: updatedService
+      data: updatedService,
     });
-
   } catch (error) {
     console.error("toggleServiceStatus error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -424,11 +417,11 @@ exports.deleteService = async (req, res) => {
   try {
     const { id } = req.params;
     const userRole = req.user?.role;
-    
+
     if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Chỉ admin mới có quyền xóa vĩnh viễn dịch vụ"
+        message: "Chỉ admin mới có quyền xóa vĩnh viễn dịch vụ",
       });
     }
 
@@ -437,7 +430,7 @@ exports.deleteService = async (req, res) => {
     if (isNaN(idNum)) {
       return res.status(400).json({
         success: false,
-        message: "ID dịch vụ không hợp lệ"
+        message: "ID dịch vụ không hợp lệ",
       });
     }
 
@@ -453,7 +446,7 @@ exports.deleteService = async (req, res) => {
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy dịch vụ"
+        message: "Không tìm thấy dịch vụ",
       });
     }
 
@@ -468,7 +461,7 @@ exports.deleteService = async (req, res) => {
     if (count > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa dịch vụ vì đã có ${count} lượt sử dụng. Bạn có thể tắt trạng thái dịch vụ thay thế.`
+        message: `Không thể xóa dịch vụ vì đã có ${count} lượt sử dụng. Bạn có thể tắt trạng thái dịch vụ thay thế.`,
       });
     }
 
@@ -486,16 +479,15 @@ exports.deleteService = async (req, res) => {
       data: {
         id: service.id,
         name: service.name,
-        deleted: true
-      }
+        deleted: true,
+      },
     });
-
   } catch (error) {
     console.error("deleteService error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -507,11 +499,11 @@ exports.requestService = async (req, res) => {
   try {
     const { rental_id: rentalId, service_id: serviceId, quantity } = req.body;
     const userRole = req.user?.role;
-    
+
     if (!["staff", "admin"].includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: "Chỉ nhân viên mới có quyền yêu cầu dịch vụ"
+        message: "Chỉ nhân viên mới có quyền yêu cầu dịch vụ",
       });
     }
 
@@ -519,7 +511,7 @@ exports.requestService = async (req, res) => {
     if (!rentalId || !serviceId) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin bắt buộc (rental_id, service_id)"
+        message: "Thiếu thông tin bắt buộc (rental_id, service_id)",
       });
     }
 
@@ -528,18 +520,18 @@ exports.requestService = async (req, res) => {
     if (qty <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Số lượng phải lớn hơn 0"
+        message: "Số lượng phải lớn hơn 0",
       });
     }
 
     // Validate ID
     const rentalIdNum = parseInt(rentalId, 10);
     const serviceIdNum = parseInt(serviceId, 10);
-    
+
     if (isNaN(rentalIdNum) || isNaN(serviceIdNum)) {
       return res.status(400).json({
         success: false,
-        message: "rental_id hoặc service_id không hợp lệ"
+        message: "rental_id hoặc service_id không hợp lệ",
       });
     }
 
@@ -555,14 +547,14 @@ exports.requestService = async (req, res) => {
     if (!rental) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy thông tin thuê phòng"
+        message: "Không tìm thấy thông tin thuê phòng",
       });
     }
 
     if (rental.status !== "active") {
       return res.status(400).json({
         success: false,
-        message: "Chỉ có thể yêu cầu dịch vụ cho phòng đang thuê"
+        message: "Chỉ có thể yêu cầu dịch vụ cho phòng đang thuê",
       });
     }
 
@@ -578,20 +570,20 @@ exports.requestService = async (req, res) => {
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy dịch vụ"
+        message: "Không tìm thấy dịch vụ",
       });
     }
 
     if (!service.is_active) {
       return res.status(400).json({
         success: false,
-        message: "Dịch vụ này hiện không khả dụng"
+        message: "Dịch vụ này hiện không khả dụng",
       });
     }
 
     // Tính tổng giá
     const totalPrice = service.price * qty;
-
+    console.log("Total Price:", totalPrice);
     // Tạo service_usage
     const { data: serviceUsage, error: insertErr } = await supabase
       .from("service_usage")
@@ -600,9 +592,10 @@ exports.requestService = async (req, res) => {
         service_id: serviceId,
         quantity: qty,
         total_price: totalPrice,
-        used_at: new Date().toISOString()
+        used_at: new Date().toISOString(),
       })
-      .select(`
+      .select(
+        `
         *,
         services(*),
         rentals(
@@ -610,7 +603,8 @@ exports.requestService = async (req, res) => {
           rooms(*),
           rental_guests(*, customers(*))
         )
-      `)
+      `
+      )
       .single();
 
     if (insertErr) throw insertErr;
@@ -618,15 +612,14 @@ exports.requestService = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Yêu cầu dịch vụ thành công",
-      data: serviceUsage
+      data: serviceUsage,
     });
-
   } catch (error) {
     console.error("requestService error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

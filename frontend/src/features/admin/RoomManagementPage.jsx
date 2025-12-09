@@ -8,37 +8,79 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  ShoppingCart,
+  Minus,
+  X,
 } from "lucide-react";
 import {
   getRooms,
   createRoom,
   updateRoom,
-  updateRoomStatus,
   deleteRoom,
+  getServices,
+  requestService,
 } from "./api/adminApi";
+// 👇 QUAN TRỌNG: Import API lấy danh sách đang thuê từ Staff
+import { getActiveRentals } from "../../features/staff/api/staffApi";
 
 const RoomManagementPage = () => {
+  // --- Room Management State ---
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
-
-  // Form State
   const [formData, setFormData] = useState({
     room_number: "",
-    room_type_id: "1", // Mặc định loại 1
+    room_type_id: "1",
     status: "available",
     note: "",
   });
   const [editId, setEditId] = useState(null);
 
+  // --- Service Request State ---
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [selectedRoomForService, setSelectedRoomForService] = useState(null);
+  const [availableServices, setAvailableServices] = useState([]);
+  const [cart, setCart] = useState({});
+
+  // --- Room Data Fetching (ĐÃ SỬA LOGIC GHÉP ID) ---
   const fetchRooms = async () => {
     try {
       setLoading(true);
       const params = statusFilter !== "all" ? { status: statusFilter } : {};
-      const res = await getRooms(params);
-      setRooms(res.data || []);
+
+      // 1. Gọi API lấy danh sách phòng
+      const roomsRes = await getRooms(params);
+      let roomsData = roomsRes.data || [];
+
+      // 2. Gọi API lấy danh sách đang thuê (để lấy rental_id)
+      // Chỉ cần gọi khi filter là 'all' hoặc 'occupied'
+      if (statusFilter === "all" || statusFilter === "occupied") {
+        try {
+          const rentalsRes = await getActiveRentals();
+          const rentals = rentalsRes.data || [];
+
+          // 3. Ghép rental_id vào room tương ứng
+          // Tạo Map cho nhanh: { room_id: rental_id }
+          const rentalMap = {};
+          rentals.forEach((r) => {
+            rentalMap[r.room_id] = r.id; // r.id chính là rental_id
+          });
+
+          // Map vào mảng rooms
+          roomsData = roomsData.map((room) => ({
+            ...room,
+            // Nếu phòng occupied, tìm rental_id trong map, nếu không có thì null
+            current_rental_id:
+              room.status === "occupied" ? rentalMap[room.id] : null,
+          }));
+        } catch (err) {
+          console.error("Không thể lấy thông tin rental:", err);
+        }
+      }
+
+      setRooms(roomsData);
     } catch (err) {
       console.error(err);
     } finally {
@@ -50,7 +92,7 @@ const RoomManagementPage = () => {
     fetchRooms();
   }, [statusFilter]);
 
-  // Xử lý Form
+  // --- Room Form Handlers ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -100,7 +142,66 @@ const RoomManagementPage = () => {
     setEditId(null);
   };
 
-  // Helper Badge Color
+  // --- Service Request Handlers ---
+  const handleOpenServiceModal = async (room) => {
+    if (room.status !== "occupied") return;
+
+    // Kiểm tra lại lần nữa
+    if (!room.current_rental_id) {
+      // Nếu vẫn không có, thử gọi lại API active rentals 1 lần nữa để chắc chắn (fallback)
+      alert(
+        "Hệ thống chưa tìm thấy mã thuê phòng (Rental ID). Vui lòng thử tải lại trang."
+      );
+      return;
+    }
+
+    setSelectedRoomForService(room);
+    setCart({});
+
+    try {
+      const res = await getServices({ is_active: true });
+      setAvailableServices(res.data || []);
+      setShowServiceModal(true);
+    } catch (err) {
+      console.error(err);
+      alert("Không thể tải danh sách dịch vụ");
+    }
+  };
+
+  const updateCart = (serviceId, delta) => {
+    setCart((prev) => {
+      const newQty = (prev[serviceId] || 0) + delta;
+      if (newQty <= 0) {
+        const { [serviceId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [serviceId]: newQty };
+    });
+  };
+
+  const handleSubmitServiceRequest = async () => {
+    const items = Object.entries(cart);
+    if (items.length === 0) return;
+
+    try {
+      await Promise.all(
+        items.map(async ([serviceId, qty]) => {
+          await requestService({
+            rental_id: selectedRoomForService.current_rental_id, // Giờ field này đã có dữ liệu
+            service_id: parseInt(serviceId),
+            quantity: qty,
+          });
+        })
+      );
+
+      alert("✅ Đã yêu cầu dịch vụ thành công!");
+      setShowServiceModal(false);
+    } catch (err) {
+      alert("❌ Lỗi: " + err.message);
+    }
+  };
+
+  // --- Helpers ---
   const getStatusColor = (status) => {
     switch (status) {
       case "available":
@@ -229,19 +330,36 @@ const RoomManagementPage = () => {
                       </span>
                     </td>
                     <td className="p-5 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEdit(room)}
-                          className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition"
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(room.id)}
-                          className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Nút Gọi Dịch Vụ */}
+                        {room.status === "occupied" && (
+                          <button
+                            onClick={() => handleOpenServiceModal(room)}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition mr-2 relative group-btn"
+                            title="Gọi dịch vụ"
+                          >
+                            <ShoppingCart size={16} />
+                            {/* Tooltip giả */}
+                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-btn-hover:opacity-100 transition-opacity whitespace-nowrap hidden group-hover:block">
+                              Gọi món
+                            </span>
+                          </button>
+                        )}
+
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEdit(room)}
+                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(room.id)}
+                            className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -252,7 +370,7 @@ const RoomManagementPage = () => {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* MODAL EDIT/ADD ROOM */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in-up">
@@ -267,7 +385,6 @@ const RoomManagementPage = () => {
                 ✕
               </button>
             </div>
-
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">
@@ -284,7 +401,6 @@ const RoomManagementPage = () => {
                   placeholder="Ví dụ: 101, 202..."
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">
@@ -320,7 +436,6 @@ const RoomManagementPage = () => {
                   </select>
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">
                   Ghi chú
@@ -335,7 +450,6 @@ const RoomManagementPage = () => {
                   placeholder="Ghi chú thêm về phòng này..."
                 ></textarea>
               </div>
-
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
@@ -352,6 +466,86 @@ const RoomManagementPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SERVICE REQUEST */}
+      {showServiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-lg text-gray-800">Gọi Dịch Vụ</h3>
+                <p className="text-sm text-gray-500">
+                  Phòng {selectedRoomForService?.room_number}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowServiceModal(false)}
+                className="text-gray-400 hover:text-red-500 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {availableServices.map((s) => {
+                const qty = cart[s.id] || 0;
+                return (
+                  <div
+                    key={s.id}
+                    className={`flex justify-between items-center p-3 border rounded-xl transition ${
+                      qty > 0
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-100 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-bold text-gray-800">{s.name}</p>
+                      <p className="text-sm text-blue-600 font-medium">
+                        {parseInt(s.price).toLocaleString()} đ / {s.unit}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateCart(s.id, -1);
+                        }}
+                        disabled={qty === 0}
+                        className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 text-gray-600"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-6 text-center font-bold text-sm text-gray-800">
+                        {qty}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateCart(s.id, 1);
+                        }}
+                        className="p-1 hover:bg-gray-100 rounded text-blue-600"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={handleSubmitServiceRequest}
+                disabled={Object.keys(cart).length === 0}
+                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-2"
+              >
+                <ShoppingCart size={18} />
+                Xác nhận yêu cầu ({Object.keys(cart).length} món)
+              </button>
+            </div>
           </div>
         </div>
       )}

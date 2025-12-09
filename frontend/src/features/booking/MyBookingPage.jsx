@@ -97,7 +97,7 @@ const MyBookingsPage = () => {
       case "checked_in":
         return (
           <span className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wider">
-            <Home size={14} /> Đang ở
+            <Home size={14} /> Đã check in
           </span>
         );
       case "cancelled":
@@ -299,7 +299,7 @@ const MyBookingsPage = () => {
                         </p>
                       </div>
 
-                      {["pending", "confirmed"].includes(booking.status) && (
+                      {["pending"].includes(booking.status) && (
                         <button
                           // THAY ĐỔI: Gọi hàm mở modal thay vì window.confirm
                           onClick={() => openCancelModal(booking.id)}

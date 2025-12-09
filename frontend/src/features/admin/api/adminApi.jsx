@@ -8,216 +8,203 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-// --- QUẢN LÝ KHÁCH HÀNG (CUSTOMERS) ---
+// ==========================================
+// 1. QUẢN LÝ KHÁCH HÀNG (CUSTOMERS)
+// ==========================================
 
-// 1. Lấy danh sách khách hàng (có search)
 export const getCustomers = async (params) => {
-  try {
-    // Gọi vào route của staff vì staff quản lý customer
-    const response = await axios.get(`${BASE_URL}/admin/customers`, {
-      headers: getAuthHeaders(),
-      params: params, // { search: '...' }
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.get(`${BASE_URL}/admin/customers`, {
+    headers: getAuthHeaders(),
+    params: params,
+  });
+  return response.data;
 };
 
-// 2. Tạo khách hàng mới
 export const createCustomer = async (data) => {
-  try {
-    const response = await axios.post(`${BASE_URL}/admin/customers`, data, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.post(`${BASE_URL}/admin/customers`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// 3. Cập nhật khách hàng
 export const updateCustomer = async (id, data) => {
-  try {
-    const response = await axios.put(
-      `${BASE_URL}/admin/customers/${id}`,
-      data,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.put(`${BASE_URL}/admin/customers/${id}`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// --- QUẢN LÝ ĐẶT PHÒNG (BOOKINGS) ---
+// ==========================================
+// 2. QUẢN LÝ ĐẶT PHÒNG (BOOKINGS)
+// ==========================================
 
-// 4. Lấy danh sách Booking (có filter)
 export const getAllBookings = async (params) => {
-  try {
-    // params: { status, room_id, from, to }
-    const response = await axios.get(`${BASE_URL}/admin/bookings`, {
-      headers: getAuthHeaders(),
-      params: params,
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.get(`${BASE_URL}/admin/bookings`, {
+    headers: getAuthHeaders(),
+    params: params,
+  });
+  return response.data;
 };
 
-// 5. Hủy Booking (Quyền Admin/stafff)
 export const cancelBookingByAdmin = async (id) => {
-  try {
-    const response = await axios.delete(`${BASE_URL}/admin/bookings/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.delete(`${BASE_URL}/admin/bookings/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
-// 6. Lấy danh sách phòng
+
+// ==========================================
+// 3. QUẢN LÝ PHÒNG (ROOMS)
+// ==========================================
+
 export const getRooms = async (params) => {
-  try {
-    // params: { page, limit, type, status }
-    const response = await axios.get(`${BASE_URL}/admin/rooms`, {
-      headers: getAuthHeaders(),
-      params: params,
-    });
-    console.log(response.data);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.get(`${BASE_URL}/admin/rooms`, {
+    headers: getAuthHeaders(),
+    params: params,
+  });
+  return response.data;
 };
 
-// 7. Tạo phòng mới
 export const createRoom = async (data) => {
-  try {
-    const response = await axios.post(`${BASE_URL}/admin/rooms`, data, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.post(`${BASE_URL}/admin/rooms`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// 8. Cập nhật phòng
 export const updateRoom = async (id, data) => {
-  try {
-    const response = await axios.put(`${BASE_URL}/admin/rooms/${id}`, data, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.put(`${BASE_URL}/admin/rooms/${id}`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// 9. Cập nhật trạng thái phòng nhanh
 export const updateRoomStatus = async (id, status) => {
-  try {
-    const response = await axios.put(
-      `${BASE_URL}/admin/rooms/${id}/status`,
-      { status },
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.put(
+    `${BASE_URL}/admin/rooms/${id}/status`,
+    { status },
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
 };
 
-// 10. Xóa phòng
 export const deleteRoom = async (id) => {
-  try {
-    const response = await axios.delete(`${BASE_URL}/admin/rooms/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.delete(`${BASE_URL}/admin/rooms/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
+
+// ==========================================
+// 4. QUẢN LÝ NHÂN VIÊN (STAFFS)
+// ==========================================
+
 export const getStaffs = async (params) => {
-  try {
-    // params: { page, limit, search, status, department }
-    const response = await axios.get(`${BASE_URL}/admin/staffs`, {
-      headers: getAuthHeaders(),
-      params: params,
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.get(`${BASE_URL}/admin/staffs`, {
+    headers: getAuthHeaders(),
+    params: params,
+  });
+  return response.data;
 };
 
-// 12. Lấy chi tiết 1 nhân viên
 export const getStaffById = async (id) => {
-  try {
-    const response = await axios.get(`${BASE_URL}/admin/staffs/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.get(`${BASE_URL}/admin/staffs/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// 13. Tạo nhân viên mới
 export const createStaff = async (data) => {
-  try {
-    const response = await axios.post(`${BASE_URL}/admin/staffs`, data, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.post(`${BASE_URL}/admin/staffs`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// 14. Cập nhật thông tin nhân viên
 export const updateStaff = async (id, data) => {
-  try {
-    const response = await axios.put(`${BASE_URL}/admin/staffs/${id}`, data, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.put(`${BASE_URL}/admin/staffs/${id}`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
 };
 
-// 15. Cập nhật trạng thái nhân viên nhanh (Active/Inactive)
 export const updateStaffStatus = async (id, status) => {
-  try {
-    const response = await axios.put(
-      `${BASE_URL}/admin/staffs/${id}/status`,
-      { status },
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
+  const response = await axios.put(
+    `${BASE_URL}/admin/staffs/${id}/status`,
+    { status },
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
 };
 
-// 16. Xóa nhân viên
 export const deleteStaff = async (id) => {
+  const response = await axios.delete(`${BASE_URL}/admin/staffs/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
+// ==========================================
+// 5. QUẢN LÝ DỊCH VỤ (SERVICES)
+// ==========================================
+
+export const getServices = async (params) => {
+  const response = await axios.get(`${BASE_URL}/admin/services`, {
+    headers: getAuthHeaders(),
+    params: params,
+  });
+  return response.data;
+};
+
+export const createService = async (data) => {
+  const response = await axios.post(`${BASE_URL}/admin/services`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
+export const updateService = async (id, data) => {
+  const response = await axios.put(`${BASE_URL}/admin/services/${id}`, data, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
+export const toggleServiceStatus = async (id) => {
+  const response = await axios.patch(
+    `${BASE_URL}/admin/services/${id}/toggle-status`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
+};
+
+export const deleteService = async (id) => {
+  const response = await axios.delete(`${BASE_URL}/admin/services/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  return response.data;
+};
+
+// Yêu cầu dịch vụ (Gọi món cho phòng)
+export const requestService = async (data) => {
+  // data: { rental_id, service_id, quantity }
+  // Lưu ý: Route này được khai báo trong admin/serviceRoutes.js là /request
+  const response = await axios.post(
+    `${BASE_URL}/admin/services/request`,
+    data,
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
+};
+// Lấy báo cáo doanh thu
+export const getDashboardStats = async () => {
   try {
-    const response = await axios.delete(`${BASE_URL}/admin/staffs/${id}`, {
+    const response = await axios.get(`${BASE_URL}/admin/reports/dashboard`, {
       headers: getAuthHeaders(),
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.message || error.message);
+    throw error.response?.data || error.message;
   }
 };
