@@ -159,6 +159,7 @@ exports.login = async (req, res) => {
     let role = "customer";
     let full_name = authData.user.email.split("@")[0];
     let customerId = null;
+    let staff_code = null;
 
     const { data: profileData } = await supabase
       .from("profiles")
@@ -177,20 +178,27 @@ exports.login = async (req, res) => {
         .select("id, full_name")
         .eq("user_id", userId)
         .maybeSingle();
-
+      
       if (customerData) {
         customerId = customerData.id;
         full_name = customerData.full_name || full_name;
+        role = 'customer';
       }
     }
-
+    
     // Tạo JWT
     const token = jwt.sign(
-      { userId, email: authData.user.email, role, customerId },
+      {
+        userId,
+        email: authData.user.email,
+        role,
+        customerId,
+        staff_code: staff_code || undefined
+      },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
-
+    
     return res.json({
       success: true,
       message: "Đăng nhập thành công",
@@ -334,6 +342,7 @@ exports.getProfile = async (req, res) => {
           role: profile.role,
         },
       });
+      
     }
 
     // Fallback
