@@ -9,7 +9,7 @@ const supabase = createClient(
 function errorResponse(res, status, message) {
   return res.status(status).json({
     success: false,
-    message: message
+    message: message,
   });
 }
 
@@ -23,16 +23,22 @@ function calculateNights(checkInDate, checkOutDate) {
 }
 
 // Helper: Tính giá thuê
-function calculateRentalPrice(nights, basePrice, numGuests, maxGuests, surchargeRatio) {
+function calculateRentalPrice(
+  nights,
+  basePrice,
+  numGuests,
+  maxGuests,
+  surchargeRatio
+) {
   let totalPrice = nights * basePrice;
-  
+
   // Áp dụng phụ phí nếu vượt quá số khách tối đa
   if (numGuests > maxGuests) {
     const extraGuests = numGuests - maxGuests;
     const surcharge = totalPrice * surchargeRatio * (extraGuests / maxGuests);
     totalPrice += surcharge;
   }
-  
+
   return Math.round(totalPrice);
 }
 
@@ -43,10 +49,13 @@ exports.checkInFromBooking = async (req, res) => {
     const { booking_id: bookingId, deposit_amount: depositAmount } = req.body;
     const userRole = req.user?.role;
     const staffId = req.user?.id;
-    
     // Kiểm tra quyền
     if (!["staff", "admin"].includes(userRole)) {
-      return errorResponse(res, 403, "Chỉ nhân viên mới có quyền thực hiện check-in");
+      return errorResponse(
+        res,
+        403,
+        "Chỉ nhân viên mới có quyền thực hiện check-in"
+      );
     }
 
     // Kiểm tra trường bắt buộc
@@ -57,7 +66,8 @@ exports.checkInFromBooking = async (req, res) => {
     // Lấy booking cùng dữ liệu liên quan
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select(`
+      .select(
+        `
         *,
         customer:customers (
           id,
@@ -78,7 +88,8 @@ exports.checkInFromBooking = async (req, res) => {
             surcharge_ratio
           )
         )
-      `)
+      `
+      )
       .eq("id", bookingId)
       .maybeSingle();
 
@@ -98,7 +109,11 @@ exports.checkInFromBooking = async (req, res) => {
     }
 
     if (!["pending", "confirmed"].includes(booking.status)) {
-      return errorResponse(res, 400, "Trạng thái booking không hợp lệ để check-in");
+      return errorResponse(
+        res,
+        400,
+        "Trạng thái booking không hợp lệ để check-in"
+      );
     }
 
     // Kiểm tra phòng
@@ -111,13 +126,22 @@ exports.checkInFromBooking = async (req, res) => {
     }
 
     // Tính giá
-    const nights = calculateNights(booking.check_in_date, booking.check_out_date);
+    const nights = calculateNights(
+      booking.check_in_date,
+      booking.check_out_date
+    );
     const basePrice = booking.room.room_type.base_price;
     const maxGuests = booking.room.room_type.max_guests || 3;
     const surchargeRatio = booking.room.room_type.surcharge_ratio || 0.25;
-    
+
     // Mặc định: 1 khách chính (khách từ booking)
-    const priceAtRental = calculateRentalPrice(nights, basePrice, 1, maxGuests, surchargeRatio);
+    const priceAtRental = calculateRentalPrice(
+      nights,
+      basePrice,
+      1,
+      maxGuests,
+      surchargeRatio
+    );
 
     // Tính deposit_amount
     let calculatedDeposit = depositAmount || booking.deposit_amount || 0;
@@ -148,7 +172,7 @@ exports.checkInFromBooking = async (req, res) => {
         end_date: booking.check_out_date,
         status: "active",
         price_at_rental: priceAtRental,
-        staff_id: staffId
+        staff_id: staffId,
       })
       .select()
       .single();
@@ -159,13 +183,11 @@ exports.checkInFromBooking = async (req, res) => {
     }
 
     // Tạo rental_guests (khách chính)
-    const { error: guestsErr } = await supabase
-      .from("rental_guests")
-      .insert({
-        rental_id: rental.id,
-        customer_id: booking.customer.id,
-        is_primary: true
-      });
+    const { error: guestsErr } = await supabase.from("rental_guests").insert({
+      rental_id: rental.id,
+      customer_id: booking.customer.id,
+      is_primary: true,
+    });
 
     if (guestsErr) {
       console.error("Lỗi tạo rental_guests:", guestsErr);
@@ -191,7 +213,7 @@ exports.checkInFromBooking = async (req, res) => {
       .from("bookings")
       .update({
         status: "checked_in",
-        deposit_amount: calculatedDeposit
+        deposit_amount: calculatedDeposit,
       })
       .eq("id", bookingId);
 
@@ -202,12 +224,14 @@ exports.checkInFromBooking = async (req, res) => {
     // Lấy đầy đủ dữ liệu rental
     const { data: rentalWithGuests, error: fetchErr } = await supabase
       .from("rentals")
-      .select(`
+      .select(
+        `
         *,
         rooms(*, room_types(*)),
         rental_guests(*, customers(*)),
         bookings(*)
-      `)
+      `
+      )
       .eq("id", rental.id)
       .single();
 
@@ -217,19 +241,17 @@ exports.checkInFromBooking = async (req, res) => {
       success: true,
       message: "Check-in thành công",
       data: rentalWithGuests,
-      deposit_amount: calculatedDeposit
+      deposit_amount: calculatedDeposit,
     });
-
   } catch (error) {
     console.error("Lỗi checkInFromBooking:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
-
 
 // POST /api/check-in/walk-in
 // Check-in khách lẻ (không có booking)
@@ -240,15 +262,19 @@ exports.checkInWalkIn = async (req, res) => {
       room_id: roomId,
       customer_ids: customerIds,
       check_out_date: checkOutDate,
-      deposit_amount: depositAmount
+      deposit_amount: depositAmount,
     } = req.body;
 
     const userRole = req.user?.role;
     const staffId = req.user?.id;
-    
+
     // Kiểm tra quyền
     if (!["staff", "admin"].includes(userRole)) {
-      return errorResponse(res, 403, "Chỉ nhân viên mới có quyền thực hiện check-in");
+      return errorResponse(
+        res,
+        403,
+        "Chỉ nhân viên mới có quyền thực hiện check-in"
+      );
     }
 
     // Kiểm tra trường bắt buộc
@@ -256,8 +282,16 @@ exports.checkInWalkIn = async (req, res) => {
       return errorResponse(res, 400, "Thiếu room_id");
     }
 
-    if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
-      return errorResponse(res, 400, "Thiếu customer_ids hoặc danh sách khách trống");
+    if (
+      !customerIds ||
+      !Array.isArray(customerIds) ||
+      customerIds.length === 0
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Thiếu customer_ids hoặc danh sách khách trống"
+      );
     }
 
     if (!checkOutDate) {
@@ -293,7 +327,11 @@ exports.checkInWalkIn = async (req, res) => {
     // Kiểm tra số khách tối đa
     const maxGuests = room.room_types.max_guests || 3;
     if (customerIds.length > maxGuests) {
-      return errorResponse(res, 400, `Phòng chỉ cho phép tối đa ${maxGuests} khách`);
+      return errorResponse(
+        res,
+        400,
+        `Phòng chỉ cho phép tối đa ${maxGuests} khách`
+      );
     }
 
     // Kiểm tra khách hàng tồn tại
@@ -311,7 +349,13 @@ exports.checkInWalkIn = async (req, res) => {
     // Tính giá
     const basePrice = room.room_types.base_price;
     const surchargeRatio = room.room_types.surcharge_ratio || 0.25;
-    const priceAtRental = calculateRentalPrice(nights, basePrice, customerIds.length, maxGuests, surchargeRatio);
+    const priceAtRental = calculateRentalPrice(
+      nights,
+      basePrice,
+      customerIds.length,
+      maxGuests,
+      surchargeRatio
+    );
 
     // Tính deposit_amount
     let calculatedDeposit = depositAmount || 0;
@@ -342,7 +386,7 @@ exports.checkInWalkIn = async (req, res) => {
         end_date: checkOutDate,
         status: "active",
         price_at_rental: priceAtRental,
-        staff_id: staffId
+        staff_id: staffId,
       })
       .select()
       .single();
@@ -356,7 +400,7 @@ exports.checkInWalkIn = async (req, res) => {
     const rentalGuests = customerIds.map((customerId, index) => ({
       rental_id: rental.id,
       customer_id: customerId,
-      is_primary: index === 0
+      is_primary: index === 0,
     }));
 
     const { error: guestsErr } = await supabase
@@ -385,11 +429,13 @@ exports.checkInWalkIn = async (req, res) => {
     // Lấy dữ liệu đầy đủ
     const { data: rentalWithGuests, error: fetchErr } = await supabase
       .from("rentals")
-      .select(`
+      .select(
+        `
         *,
         rooms(*, room_types(*)),
         rental_guests(*, customers(*))
-      `)
+      `
+      )
       .eq("id", rental.id)
       .single();
 
@@ -398,15 +444,14 @@ exports.checkInWalkIn = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Check-in thành công",
-      data: rentalWithGuests
+      data: rentalWithGuests,
     });
-
   } catch (error) {
     console.error("Lỗi checkInWalkIn:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -415,14 +460,14 @@ exports.checkInWalkIn = async (req, res) => {
 // Tính giá thuê cho khách walk-in
 exports.calculateWalkInPrice = async (req, res) => {
   try {
-    const { 
-      room_id: roomId, 
+    const {
+      room_id: roomId,
       check_out_date: checkOutDate,
-      num_guests: numGuests 
+      num_guests: numGuests,
     } = req.body;
 
     const userRole = req.user?.role;
-    
+
     // Kiểm tra quyền
     if (!["staff", "admin"].includes(userRole)) {
       return errorResponse(res, 403, "Chỉ nhân viên mới có quyền tính giá");
@@ -430,7 +475,11 @@ exports.calculateWalkInPrice = async (req, res) => {
 
     // Kiểm tra trường bắt buộc
     if (!roomId || !checkOutDate || !numGuests) {
-      return errorResponse(res, 400, "Thiếu thông tin bắt buộc (room_id, check_out_date, num_guests)");
+      return errorResponse(
+        res,
+        400,
+        "Thiếu thông tin bắt buộc (room_id, check_out_date, num_guests)"
+      );
     }
 
     // Kiểm tra ngày
@@ -458,9 +507,15 @@ exports.calculateWalkInPrice = async (req, res) => {
     const basePrice = room.room_types.base_price;
     const maxGuests = room.room_types.max_guests || 3;
     const surchargeRatio = room.room_types.surcharge_ratio || 0.25;
-    
+
     const roomCharge = nights * basePrice;
-    const totalPrice = calculateRentalPrice(nights, basePrice, numGuests, maxGuests, surchargeRatio);
+    const totalPrice = calculateRentalPrice(
+      nights,
+      basePrice,
+      numGuests,
+      maxGuests,
+      surchargeRatio
+    );
     const surcharge = totalPrice - roomCharge;
 
     // Tính deposit
@@ -490,16 +545,15 @@ exports.calculateWalkInPrice = async (req, res) => {
         surcharge: surcharge,
         total_price: totalPrice,
         deposit_percentage: depositPercentage,
-        deposit_amount: depositAmount
-      }
+        deposit_amount: depositAmount,
+      },
     });
-
   } catch (error) {
     console.error("Lỗi calculateWalkInPrice:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

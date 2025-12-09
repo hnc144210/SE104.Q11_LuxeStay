@@ -6,7 +6,7 @@ import { AuthProvider } from "./features/context/AuthContext";
 
 // Layouts
 import AdminLayout from "./components/layout/AdminLayout";
-
+import StaffLayout from "./components/layout/StaffLayout";
 // Public Pages
 import HomePage from "./features/home/HomePage";
 import AuthPage from "./features/auth/AuthPage";
@@ -24,6 +24,13 @@ import RoomManagementPage from "./features/admin/RoomManagementPage";
 import BookingManagementPage from "./features/admin/BookingManagementPage";
 import CustomerManagementPage from "./features/admin/CustomerManagementPage";
 import StaffManagementPage from "./features/admin/StaffManagementPage";
+
+// Staff Pages
+import StaffDashboard from "./features/staff/StaffDashboard";
+import StaffBookingPage from "./features/staff/StaffBookingPage";
+import StaffCustomerPage from "./features/staff/StaffCustomerPage";
+import CheckInPage from "./features/staff/CheckinPage";
+import CheckOutPage from "./features/staff/CheckOutPage";
 function App() {
   return (
     <AuthProvider>
@@ -42,7 +49,17 @@ function App() {
           />
           <Route path="/booking-success" element={<BookingSuccessPage />} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
+          {/* === KHU VỰC STAFF === */}
+          <Route path="/staff" element={<StaffLayout />}>
+            {/* Mặc định vào Dashboard */}
+            <Route index element={<Navigate to="dashboard" replace />} />
 
+            <Route path="dashboard" element={<StaffDashboard />} />
+            <Route path="bookings" element={<StaffBookingPage />} />
+            <Route path="customers" element={<StaffCustomerPage />} />
+            <Route path="checkin" element={<CheckInPage />} />
+            <Route path="checkout" element={<CheckOutPage />} />
+          </Route>
           {/* === ADMIN ROUTES (Đã sửa lại cấu trúc chuẩn) === */}
           {/* Mọi route con bên trong sẽ được bao bọc bởi AdminLayout (có Sidebar) */}
           <Route path="/admin" element={<AdminLayout />}>

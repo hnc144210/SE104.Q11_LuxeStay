@@ -19,16 +19,16 @@ const customerRoutes = require("../staff/customerRoutes");
 router.use(authorize("admin"));
 
 // --- ĐỊNH NGHĨA ROUTES ---
-router.use("/staff", staffRoutes);        // -> /api/v1/admin/staff
-router.use("/rooms", roomRoutes);         // -> /api/v1/admin/rooms
-router.use("/config", configRoutes);      // -> /api/v1/admin/config
+router.use("/staff", staffRoutes); // -> /api/v1/admin/staff
+router.use("/rooms", roomRoutes); // -> /api/v1/admin/rooms
+router.use("/config", configRoutes); // -> /api/v1/admin/config
 //router.use("/services", serviceRoutes);   // -> /api/v1/admin/services
 router.use("/customers", customerRoutes); // -> /api/v1/admin/customers
 // --- ĐỊNH NGHĨA ROUTES ---
-router.use("/staff", staffRoutes);        // -> /api/v1/admin/staff
-router.use("/rooms", roomRoutes);         // -> /api/v1/admin/rooms
-router.use("/config", configRoutes);      // -> /api/v1/admin/config
-router.use("/services", serviceRoutes);   // -> /api/v1/admin/services
+router.use("/staff", staffRoutes); // -> /api/v1/admin/staff
+router.use("/rooms", roomRoutes); // -> /api/v1/admin/rooms
+router.use("/config", configRoutes); // -> /api/v1/admin/config
+router.use("/services", serviceRoutes); // -> /api/v1/admin/services
 router.use("/customers", customerRoutes); // -> /api/v1/admin/customers
 
 // Booking routes
