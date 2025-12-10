@@ -52,3 +52,4 @@ export const getRoomById = async (id) => {
     throw new Error(errorMessage);
   }
 };
+//src/features/room/api/roomApi.jsx

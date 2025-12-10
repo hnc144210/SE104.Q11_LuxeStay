@@ -14,6 +14,7 @@ exports.getActiveRentals = async (req, res) => {
         id,  
         room_id,
         start_date,
+        end_date,
         price_at_rental,
         status,
         rooms (

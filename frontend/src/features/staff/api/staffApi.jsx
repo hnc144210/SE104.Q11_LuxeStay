@@ -109,4 +109,30 @@ export const getInvoiceById = async (id) => {
     throw error.response?.data || error.message;
   }
 };
+export const getRentalById = async (id) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/finance/rentals/${id}`,
+      getAuthHeaders()
+    );
+    console.log("API getRentalById response:", response.data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// 2. Gia hạn phòng (Cập nhật ngày trả phòng)
+export const extendRental = async (id, newEndDate) => {
+  try {
+    const response = await axios.put(
+      `${BASE_URL}/finance/rentals/${id}`,
+      { new_end_date: newEndDate },
+      { headers: getAuthHeaders().headers } // Lưu ý: axios.put(url, data, config)
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
 //src/features/staff/api/staffApi.jsx

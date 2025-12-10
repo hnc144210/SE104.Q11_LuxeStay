@@ -1,4 +1,5 @@
 // backend/src/controllers/checkInController.js
+const { getSystemSettings } = require("../utils/settingHelper");
 const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -456,100 +457,97 @@ exports.checkInWalkIn = async (req, res) => {
 // Tính giá thuê cho khách walk-in
 exports.calculateWalkInPrice = async (req, res) => {
   try {
-    const {
-      room_id: roomId,
-      check_out_date: checkOutDate,
-      num_guests: numGuests,
-    } = req.body;
+    const { room_id, check_out_date, customer_ids } = req.body;
+    // customer_ids: mảng ID khách hàng để check xem có khách nước ngoài không
 
-    const userRole = req.user?.role;
-
-    // Kiểm tra quyền
-    if (!["staff", "admin"].includes(userRole)) {
-      return errorResponse(res, 403, "Chỉ nhân viên mới có quyền tính giá");
-    }
-
-    // Kiểm tra trường bắt buộc
-    if (!roomId || !checkOutDate || !numGuests) {
-      return errorResponse(
-        res,
-        400,
-        "Thiếu thông tin bắt buộc (room_id, check_out_date, num_guests)"
-      );
-    }
-
-    // Kiểm tra ngày
-    const checkInDate = new Date().toISOString();
-    const nights = calculateNights(checkInDate, checkOutDate);
-
-    if (nights <= 0) {
-      return errorResponse(res, 400, "Ngày check-out phải sau ngày hiện tại");
-    }
-
-    // Lấy phòng & loại phòng
-    const { data: room, error: roomErr } = await supabase
+    // 1. Lấy thông tin Phòng & Loại phòng
+    const { data: room } = await supabase
       .from("rooms")
       .select("*, room_types(*)")
-      .eq("id", roomId)
-      .maybeSingle();
+      .eq("id", room_id)
+      .single();
 
-    if (roomErr) throw roomErr;
+    if (!room) return res.status(404).json({ message: "Phòng không tồn tại" });
 
-    if (!room) {
-      return errorResponse(res, 404, "Không tìm thấy phòng");
+    // 2. Lấy thông tin Cấu hình Hệ thống (TỪ BẢNG SETTINGS)
+    const settings = await getSystemSettings();
+
+    // 3. Tính số đêm
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(check_out_date);
+    let nights = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+    if (nights < 1) nights = 1;
+
+    // 4. Tính toán cơ bản
+    const basePrice = Number(room.room_types.base_price);
+    const roomCharge = basePrice * nights;
+
+    let totalAmount = roomCharge;
+    let surchargeAmount = 0;
+    let foreignSurchargeAmount = 0;
+
+    // 5. Xử lý Phụ thu Quá người (Dựa trên max_guests_per_room và surcharge_rate)
+    // Giả sử phòng tiêu chuẩn 2 người. Nếu khách > 2 thì tính phụ thu.
+    // Bạn có thể cần lấy số lượng khách từ req.body.num_guests hoặc customer_ids.length
+    const numGuests = customer_ids ? customer_ids.length : 1;
+    const standardCapacity = 2; // Mặc định 2 người/phòng (hoặc lấy từ DB nếu có cột capacity)
+
+    if (numGuests > standardCapacity) {
+      const extraPeople = numGuests - standardCapacity;
+      // Công thức: Giá gốc * tỉ lệ phụ thu * số người thêm * số đêm
+      const extraCharge =
+        basePrice * settings.surchargeRate * extraPeople * nights;
+
+      surchargeAmount += extraCharge;
+      totalAmount += extraCharge;
     }
 
-    // Tính giá
-    const basePrice = room.room_types.base_price;
-    const maxGuests = room.room_types.max_guests || 3;
-    const surchargeRatio = room.room_types.surcharge_ratio || 0.25;
+    // 6. Xử lý Phụ thu Khách nước ngoài (Dựa trên foreign_coefficient)
+    // Cần check trong DB xem khách hàng gửi lên có ai là 'foreign' không
+    let hasForeigner = false;
+    if (customer_ids && customer_ids.length > 0) {
+      const { data: customers } = await supabase
+        .from("customers")
+        .select("type")
+        .in("id", customer_ids);
 
-    const roomCharge = nights * basePrice;
-    const totalPrice = calculateRentalPrice(
-      nights,
-      basePrice,
-      numGuests,
-      maxGuests,
-      surchargeRatio
-    );
-    const surcharge = totalPrice - roomCharge;
-
-    // Tính deposit
-    const { data: regulation, error: regErr } = await supabase
-      .from("regulations")
-      .select("value")
-      .eq("key", "deposit_percentage")
-      .maybeSingle();
-
-    if (regErr) {
-      console.error("Get deposit regulation error:", regErr);
+      if (customers) {
+        hasForeigner = customers.some((c) => c.type === "foreign");
+      }
     }
 
-    const depositPercentage = regulation?.value || 30;
-    const depositAmount = Math.round((totalPrice * depositPercentage) / 100);
+    if (hasForeigner) {
+      // Cách tính 1: Nhân hệ số (Ví dụ 1.5 lần tổng tiền)
+      const newTotal = totalAmount * settings.foreignFactor;
+      foreignSurchargeAmount = newTotal - totalAmount;
+      totalAmount = newTotal;
+
+      // Hoặc Cách tính 2: Chỉ nhân hệ số vào tiền phòng (tùy nghiệp vụ khách sạn)
+      // foreignSurchargeAmount = roomCharge * (settings.foreignFactor - 1);
+      // totalAmount += foreignSurchargeAmount;
+    }
+
+    // 7. Tính tiền cọc (Dựa trên deposit_percentage)
+    const depositAmount = totalAmount * (settings.depositPercent / 100);
 
     return res.json({
       success: true,
       data: {
-        room_number: room.room_number,
-        room_type: room.room_types.name,
-        base_price: basePrice,
-        nights: nights,
-        num_guests: numGuests,
-        max_guests: maxGuests,
+        room_price: basePrice,
+        nights,
         room_charge: roomCharge,
-        surcharge: surcharge,
-        total_price: totalPrice,
-        deposit_percentage: depositPercentage,
+        surcharge: surchargeAmount, // Phụ thu người
+        foreign_surcharge: foreignSurchargeAmount, // Phụ thu nước ngoài
+        total_price: totalAmount,
+
+        // Trả về số tiền cọc gợi ý để Frontend điền sẵn
         deposit_amount: depositAmount,
+        deposit_percentage: settings.depositPercent,
       },
     });
-  } catch (error) {
-    console.error("Lỗi calculateWalkInPrice:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Lỗi tính toán" });
   }
 };

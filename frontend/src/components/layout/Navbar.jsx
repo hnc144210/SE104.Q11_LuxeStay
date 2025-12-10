@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaUserCircle, FaSignOutAlt } from "react-icons/fa";
 import { useAuthContext } from "../../features/context/AuthContext.jsx";
-import { User, History, CalendarCheck } from "lucide-react";
+import { User, History, CalendarCheck, LayoutDashboard } from "lucide-react"; // Thêm LayoutDashboard nếu muốn icon đẹp hơn cho admin
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false); // State quản lý dropdown
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const { user, logout } = useAuthContext();
   const navigate = useNavigate();
@@ -80,67 +80,74 @@ export const Navbar = () => {
                 className="flex items-center gap-2 hover:text-blue-500 transition focus:outline-none"
               >
                 <FaUserCircle className="text-2xl" />
-                <span className="max-w-[100px] truncate">
-                  {user.full_name || "User"}
-                </span>
               </button>
 
               {/* Dropdown Menu */}
               {showDropdown && (
-                <div className="absolute right-0 mt-3 w-[220px] bg-white rounded-xl shadow-lg border border-gray-100 py-2 overflow-hidden animate-fade-in-down">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm text-gray-500">
-                      Xin chào, <strong>{user.full_name}</strong>
+                <div className="absolute right-0 mt-3 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-1 overflow-hidden animate-fade-in-down origin-top-right">
+                  {/* 1. Header gọn gàng & hiện đại */}
+                  <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      Xin Chào
                     </p>
-                    <p className="text-xs text-gray-400 uppercase mt-1">
+                    <p className="text-xs text-gray-500 font-medium capitalize mt-0.5">
                       {user.role}
                     </p>
                   </div>
 
-                  <Link
-                    to="/my-bookings"
-                    onClick={() => setShowDropdown(false)}
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                  >
-                    <History size={16} />
-                    Lịch sử đặt phòng
-                  </Link>
+                  <div className="py-1">
+                    {/* 2. Logic ẩn/hiện Lịch sử đặt phòng */}
+                    {/* Chỉ hiện nếu KHÔNG PHẢI là admin hoặc staff */}
+                    {!["admin", "staff"].includes(user.role) && (
+                      <Link
+                        to="/my-bookings"
+                        onClick={() => setShowDropdown(false)}
+                        className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black transition"
+                      >
+                        <History size={16} className="text-gray-400" />
+                        Lịch sử đặt phòng
+                      </Link>
+                    )}
 
-                  <Link
-                    to="/profile"
-                    onClick={() => setShowDropdown(false)}
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
-                  >
-                    <User size={16} />
-                    Hồ sơ cá nhân
-                  </Link>
-
-                  {/* --- SỬA LOGIC Ở ĐÂY --- */}
-                  {["admin", "staff"].includes(user.role) && (
                     <Link
-                      // Kiểm tra role để điều hướng đúng trang Dashboard
-                      to={
-                        user.role === "admin"
-                          ? "/admin/dashboard"
-                          : "/staff/dashboard"
-                      }
+                      to="/profile"
                       onClick={() => setShowDropdown(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition"
+                      className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black transition"
                     >
-                      <CalendarCheck size={16} />
-                      {/* Hiển thị text khác nhau cho dễ phân biệt (Tùy chọn) */}
-                      {user.role === "admin"
-                        ? "Trang quản trị Admin"
-                        : "Trang làm việc Staff"}
+                      <User size={16} className="text-gray-400" />
+                      Hồ sơ cá nhân
                     </Link>
-                  )}
 
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition text-left border-t border-gray-100 mt-1"
-                  >
-                    <FaSignOutAlt /> Đăng xuất
-                  </button>
+                    {/* 3. Link Dashboard - Đồng nhất màu sắc */}
+                    {["admin", "staff"].includes(user.role) && (
+                      <Link
+                        to={
+                          user.role === "admin"
+                            ? "/admin/dashboard"
+                            : "/staff/dashboard"
+                        }
+                        onClick={() => setShowDropdown(false)}
+                        className="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-black transition"
+                      >
+                        {/* Dùng CalendarCheck hoặc LayoutDashboard */}
+                        <CalendarCheck size={16} className="text-gray-400" />
+
+                        {user.role === "admin"
+                          ? "Trang quản trị"
+                          : "Trang làm việc"}
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-100 mt-1">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-red-600 hover:bg-red-50 transition text-left"
+                    >
+                      <FaSignOutAlt className="text-base" />
+                      Đăng xuất
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
