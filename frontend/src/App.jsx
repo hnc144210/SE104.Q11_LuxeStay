@@ -3,7 +3,8 @@ import { Routes, Route, Navigate } from "react-router-dom"; // Thêm Navigate đ
 
 // Context
 import { AuthProvider } from "./features/context/AuthContext";
-
+//User
+import ProfilePage from "./features/user/ProfilePage";
 // Layouts
 import AdminLayout from "./components/layout/AdminLayout";
 import StaffLayout from "./components/layout/StaffLayout";
@@ -31,6 +32,7 @@ import StaffBookingPage from "./features/staff/StaffBookingPage";
 import StaffCustomerPage from "./features/staff/StaffCustomerPage";
 import CheckInPage from "./features/staff/CheckinPage";
 import CheckOutPage from "./features/staff/CheckOutPage";
+import ActiveRentalsPage from "./features/staff/ActiveRentalsPage";
 function App() {
   return (
     <AuthProvider>
@@ -59,6 +61,7 @@ function App() {
             <Route path="customers" element={<StaffCustomerPage />} />
             <Route path="checkin" element={<CheckInPage />} />
             <Route path="checkout" element={<CheckOutPage />} />
+            <Route path="active-rentals" element={<ActiveRentalsPage />} />
           </Route>
           {/* === ADMIN ROUTES (Đã sửa lại cấu trúc chuẩn) === */}
           {/* Mọi route con bên trong sẽ được bao bọc bởi AdminLayout (có Sidebar) */}
@@ -79,6 +82,7 @@ function App() {
               element={<div>Trang Cài đặt (Đang phát triển)</div>}
             />
           </Route>
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </div>
     </AuthProvider>

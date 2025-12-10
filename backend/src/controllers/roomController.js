@@ -58,6 +58,7 @@ exports.checkAvailability = async (req, res) => {
         id, 
         room_number, 
         status, 
+        images,
         room_type_id,
         room_types (
           id, name, base_price, max_guests
@@ -153,7 +154,8 @@ exports.checkAvailability = async (req, res) => {
     const formattedRooms = availableRooms.map((room) => ({
       room_id: room.id,
       room_number: room.room_number,
-      room_type: room.room_types, // Đã check !null ở filter trên
+      room_type: room.room_types,
+      images: room.images, // Đã check !null ở filter trên
       pricing: {
         base_price: Number(room.room_types?.base_price || 0),
         nights: finalNights,
@@ -219,6 +221,7 @@ exports.getRoomById = async (req, res) => {
         id,
         room_number,
         status,
+        images,
         note,
         room_types (
           id,
@@ -368,6 +371,7 @@ exports.getRooms = async (req, res) => {
         room_number,
         status,
         note,
+        images,
         created_at,
         room_types (
           id,

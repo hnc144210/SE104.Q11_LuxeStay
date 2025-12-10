@@ -385,4 +385,113 @@ exports.updateCustomer = async (req, res) => {
     });
   }
 };
+exports.getMe = async (req, res) => {
+  try {
+    // req.user được middleware 'authenticate' giải mã từ Token
+    const userEmail = req.user?.email;
+
+    if (!userEmail) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Không xác thực được người dùng" });
+    }
+
+    // Tìm trong bảng customers xem có ai trùng email này không
+    const { data: customer, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("email", userEmail)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Hồ sơ khách hàng không tồn tại.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: customer,
+    });
+  } catch (err) {
+    console.error("getMe Error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Lỗi server khi lấy thông tin." });
+  }
+};
+
+/**
+ * 2. PUT /me
+ * Cập nhật hồ sơ của chính mình
+ */
+exports.updateMe = async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    const { full_name, phone_number, address, identity_card } = req.body;
+
+    // 1. Tìm ID của user đang login
+    const { data: me, error: findError } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("email", userEmail)
+      .maybeSingle();
+
+    if (findError || !me) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy hồ sơ để cập nhật" });
+    }
+
+    // 2. Chuẩn bị dữ liệu update (Chỉ cho phép sửa các trường an toàn)
+    const updates = {};
+    if (full_name) updates.full_name = full_name;
+    if (address) updates.address = address;
+    if (identity_card) updates.identity_card = identity_card;
+
+    // Validate số điện thoại nếu có thay đổi
+    if (phone_number) {
+      if (!/^[0-9]{10,11}$/.test(phone_number)) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Số điện thoại không hợp lệ (10-11 số)",
+          });
+      }
+      updates.phone_number = phone_number;
+    }
+
+    // Nếu không gửi gì lên thì báo luôn
+    if (Object.keys(updates).length === 0) {
+      return res
+        .status(200)
+        .json({ success: true, message: "Không có thông tin nào thay đổi" });
+    }
+
+    // 3. Thực hiện Update vào DB
+    const { data: updatedCustomer, error: updateError } = await supabase
+      .from("customers")
+      .update(updates)
+      .eq("id", me.id) // Quan trọng: Chỉ update đúng ID của người này
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật hồ sơ thành công",
+      data: updatedCustomer,
+    });
+  } catch (err) {
+    console.error("updateMe Error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Lỗi server khi cập nhật." });
+  }
+};
 //controllers/userController.js

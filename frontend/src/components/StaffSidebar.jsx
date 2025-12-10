@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Users,
   LogOut as SignOutIcon,
+  BedDouble,
 } from "lucide-react";
 import { useAuthContext } from "../features/context/AuthContext"; // Sửa đường dẫn cho đúng
 import { Link } from "react-router-dom";
@@ -19,6 +20,11 @@ const StaffSidebar = () => {
     { icon: LogIn, label: "Check In", path: "/staff/checkin" },
     { icon: LogOut, label: "Check Out", path: "/staff/checkout" },
     { icon: Users, label: "Khách hàng", path: "/staff/customers" },
+    {
+      icon: BedDouble,
+      label: "Phòng đang thuê",
+      path: "/staff/active-rentals",
+    },
   ];
 
   return (

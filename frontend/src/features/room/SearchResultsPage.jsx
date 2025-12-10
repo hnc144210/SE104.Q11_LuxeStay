@@ -3,7 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
 import { Footer } from "../../components/layout/Footer";
 
-// --- ICONS (Giữ nguyên) ---
+// --- CONSTANTS ---
+const DEFAULT_IMAGE = "https://cdn3.ivivu.com/2014/01/SUPER-DELUXE2.jpg";
+
+// --- ICONS ---
 const Icons = {
   Star: () => (
     <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
@@ -108,7 +111,7 @@ const Icons = {
   ),
 };
 
-// --- SKELETON LOADING COMPONENT ---
+// --- SKELETON ---
 const RoomSkeleton = () => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
     <div className="h-56 bg-gray-200"></div>
@@ -123,103 +126,85 @@ const RoomSkeleton = () => (
   </div>
 );
 
-// --- IMPROVED ROOM CARD ---
-// [UPDATE 1] Thêm prop `onSelect` và gắn vào onClick button
-const RoomCard = ({ room, onSelect }) => (
-  <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 transform hover:-translate-y-1 z-0">
-    {/* Image Section */}
-    <div className="h-56 bg-gray-100 relative overflow-hidden">
-      {room.image ? (
+// --- ROOM CARD ---
+const RoomCard = ({ room, onSelect }) => {
+  const handleImageError = (e) => {
+    e.target.src = DEFAULT_IMAGE;
+  };
+
+  return (
+    <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 transform hover:-translate-y-1 z-0">
+      <div className="h-56 bg-gray-100 relative overflow-hidden">
         <img
-          src={room.image}
+          src={room.image || DEFAULT_IMAGE}
           alt={room.name}
+          onError={handleImageError}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-      ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-          <svg
-            className="w-12 h-12 mb-2 opacity-50"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <span className="text-sm">Chưa có hình ảnh</span>
+        {/* Badges */}
+        <div className="absolute top-3 right-3 z-10">
+          <button className="p-2 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full transition-colors">
+            <Icons.Heart />
+          </button>
         </div>
-      )}
-
-      {/* Badges & Actions */}
-      <div className="absolute top-3 right-3 z-10">
-        <button className="p-2 bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full transition-colors">
-          <Icons.Heart />
-        </button>
-      </div>
-      <div className="absolute top-3 left-3 z-10">
-        <span className="bg-white/90 backdrop-blur-sm text-blue-600 text-xs font-bold px-3 py-1 rounded-full shadow-sm">
-          {room.status === "available" ? "Còn trống" : room.status}
-        </span>
-      </div>
-    </div>
-
-    {/* Content Section */}
-    <div className="p-5">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <div className="flex items-center text-gray-500 text-xs mb-1 gap-1">
-            <Icons.MapPin />
-            <span>Trung tâm thành phố</span>
-          </div>
-          <h3 className="text-lg font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">
-            {room.name}
-          </h3>
-        </div>
-        <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
-          <Icons.Star />
-          <span className="text-sm font-bold text-blue-800">4.8</span>
-        </div>
-      </div>
-
-      {/* Amenities / Info Tags */}
-      <div className="flex flex-wrap gap-2 mb-4 mt-3">
-        <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">
-          <Icons.User /> {room.max_guests} khách
-        </span>
-        <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">
-          <Icons.Moon /> {room.nights} đêm
-        </span>
-      </div>
-
-      <div className="border-t border-gray-100 pt-4 flex justify-between items-end">
-        <div className="flex flex-col">
-          <span className="text-xs text-gray-500 font-medium">
-            Tổng giá cho {room.nights} đêm
+        <div className="absolute top-3 left-3 z-10">
+          <span className="bg-white/90 backdrop-blur-sm text-blue-600 text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+            {room.status === "available" ? "Còn trống" : room.status}
           </span>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-extrabold text-gray-900">
-              {room.price ? room.price.toLocaleString() : 0}
-            </span>
-            <span className="text-sm font-semibold text-gray-600 underline decoration-dotted">
-              đ
-            </span>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <div className="flex items-center text-gray-500 text-xs mb-1 gap-1">
+              <Icons.MapPin />
+              <span>Trung tâm thành phố</span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">
+              {room.name}
+            </h3>
+          </div>
+          <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
+            <Icons.Star />
+            <span className="text-sm font-bold text-blue-800">4.8</span>
           </div>
         </div>
-        {/* [UPDATE 2] Gắn sự kiện onClick vào nút */}
-        <button
-          onClick={onSelect}
-          className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-200"
-        >
-          Chọn phòng
-        </button>
+
+        <div className="flex flex-wrap gap-2 mb-4 mt-3">
+          <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">
+            <Icons.User /> {room.max_guests} khách
+          </span>
+          <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">
+            <Icons.Moon /> {room.nights} đêm
+          </span>
+        </div>
+
+        <div className="border-t border-gray-100 pt-4 flex justify-between items-end">
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-500 font-medium">
+              Tổng giá cho {room.nights} đêm
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-extrabold text-gray-900">
+                {room.price ? room.price.toLocaleString() : 0}
+              </span>
+              <span className="text-sm font-semibold text-gray-600 underline decoration-dotted">
+                đ
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onSelect}
+            className="px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-200"
+          >
+            Chọn phòng
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // -----------------------------------------------------------------------
 
@@ -264,6 +249,9 @@ const SearchResultsPage = () => {
         const BASE_URL = "http://localhost:3000/api/v1";
         const apiUrl = `${BASE_URL}/rooms/availability?${queryParams.toString()}`;
 
+        // LOG 1: Xem URL gọi API
+        console.log("🚀 Calling API:", apiUrl);
+
         const response = await fetch(apiUrl, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -271,29 +259,69 @@ const SearchResultsPage = () => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          let errorMessage = `Lỗi kết nối (${response.status})`;
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.message || errorMessage;
-          } catch (e) {}
-          throw new Error(errorMessage);
+          throw new Error(`Lỗi kết nối (${response.status})`);
         }
 
         const rawData = await response.json();
 
+        // LOG 2: Xem dữ liệu thô từ Backend trả về
+        console.log("🔥 Raw Data from Backend:", rawData);
+
         let roomList = [];
         if (rawData.success && rawData.data?.all_available_rooms) {
-          roomList = rawData.data.all_available_rooms.map((item) => ({
-            id: item.room_id,
-            name: `${item.room_type.name} - ${item.room_number}`,
-            price: item.pricing.total_price,
-            max_guests: item.room_type.max_guests,
-            nights: item.pricing.nights,
-            description: item.room_type.name,
-            status: item.status,
-            image:
-              "https://images.unsplash.com/photo-1611892440504-42a792e24d32?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-          }));
+          roomList = rawData.data.all_available_rooms.map((item) => {
+            // --- [LOGIC XỬ LÝ ẢNH MỚI - ĐÃ CẬP NHẬT] ---
+            let displayImage = DEFAULT_IMAGE;
+
+            // LOG 3: In ra từng phòng để xem trường images nó là cái gì
+            console.log(
+              `🔍 Processing Room [${item.room_number}] Images:`,
+              item.images,
+              "Type:",
+              typeof item.images
+            );
+
+            if (item.images) {
+              if (Array.isArray(item.images) && item.images.length > 0) {
+                // Case A: Nó là Mảng chuẩn (Array)
+                displayImage = item.images[0];
+                console.log("   -> Case Array: Lấy ảnh đầu tiên");
+              } else if (typeof item.images === "string") {
+                // Case B: Nó là Chuỗi kiểu "{link1,link2}" (Postgres Array)
+                // Bước 1: Xóa dấu { và } ở đầu cuối, xóa dấu nháy kép " nếu có
+                let cleanString = item.images
+                  .replace(/^\{|\}$/g, "")
+                  .replace(/"/g, "");
+                // Bước 2: Tách chuỗi bằng dấu phẩy
+                let urls = cleanString.split(",");
+
+                if (urls.length > 0 && urls[0].trim() !== "") {
+                  displayImage = urls[0].trim();
+                  console.log(
+                    "   -> Case String: Parse thành công:",
+                    displayImage
+                  );
+                }
+              }
+            }
+            // Fallback: nếu backend dùng tên biến là 'image' thay vì 'images'
+            else if (item.image) {
+              displayImage = item.image;
+            }
+
+            console.log("   ✅ Final Image:", displayImage);
+
+            return {
+              id: item.room_id,
+              name: `${item.room_type.name} - ${item.room_number}`,
+              price: item.pricing.total_price,
+              max_guests: item.room_type.max_guests,
+              nights: item.pricing.nights,
+              description: item.room_type.name,
+              status: item.status,
+              image: displayImage, // Ảnh đã xử lý
+            };
+          });
         }
         setRooms(roomList);
       } catch (err) {
@@ -307,16 +335,13 @@ const SearchResultsPage = () => {
     fetchRooms();
   }, [searchParams]);
 
-  // [UPDATE 3] Hàm xử lý khi chọn phòng
   const handleSelectRoom = (room) => {
-    // Chuyển hướng sang trang chi tiết phòng
-    // Truyền state để trang detail không phải chọn lại ngày
     navigate(`/room-details/${room.id}`, {
       state: {
         check_in_date: searchParams.check_in_date,
         check_out_date: searchParams.check_out_date,
         max_guests: searchParams.max_guests,
-        roomData: room, // Truyền luôn data phòng qua để đỡ phải fetch lại (nếu muốn)
+        roomData: room,
       },
     });
   };
@@ -326,6 +351,7 @@ const SearchResultsPage = () => {
       <Navbar />
 
       <div className="pt-20 flex-grow flex flex-col">
+        {/* Header Filter Bar */}
         <div className="bg-white border-b border-gray-200 sticky top-16 z-40 shadow-sm transition-all duration-300">
           <div className="container mx-auto px-4 py-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -382,7 +408,6 @@ const SearchResultsPage = () => {
 
         {/* Content Area */}
         <div className="flex-grow container mx-auto px-4 py-8 relative z-0">
-          {/* Error Display */}
           {error && (
             <div className="max-w-4xl mx-auto bg-red-50 border border-red-200 rounded-xl p-6 mb-8 flex items-start gap-4">
               <div className="bg-red-100 p-2 rounded-full text-red-600">
@@ -433,7 +458,7 @@ const SearchResultsPage = () => {
                   </h3>
                   <p className="text-gray-500 mb-8 max-w-md mx-auto">
                     Rất tiếc, chúng tôi không tìm thấy phòng nào phù hợp trong
-                    khoảng thời gian
+                    khoảng thời gian{" "}
                     <strong> {searchParams.check_in_date}</strong> đến{" "}
                     <strong>{searchParams.check_out_date}</strong>.
                   </p>
@@ -447,7 +472,6 @@ const SearchResultsPage = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {rooms.map((room, index) => (
-                    // [UPDATE 4] Truyền props onSelect
                     <RoomCard
                       key={room.id || index}
                       room={room}
@@ -460,7 +484,6 @@ const SearchResultsPage = () => {
           )}
         </div>
       </div>
-
       <Footer />
     </div>
   );
