@@ -1,7 +1,6 @@
 // src/controllers/bookingController.js
 const { supabase } = require("../utils/supabaseClient");
-
-// GET /api/v1/bookings/:id
+const { getSystemSettings } = require("../utils/settingHelper"); // GET /api/v1/bookings/:id
 exports.getBookingById = async (req, res) => {
   const bookingId = req.params.id;
   const user = req.user; // lấy từ middleware authenticate
@@ -177,7 +176,7 @@ exports.createBookingForCustomer = async (req, res) => {
   try {
     const user = req.user;
 
-    // Phải đăng nhập với role customer
+    // 1. Kiểm tra quyền
     if (!user || user.role !== "customer" || !user.customerId) {
       return res.status(403).json({
         success: false,
@@ -190,14 +189,15 @@ exports.createBookingForCustomer = async (req, res) => {
       check_in_date,
       check_out_date,
       num_guests,
-      deposit_amount = 0,
+      deposit_amount,
+      note,
     } = req.body;
 
-    // Kiểm tra input
+    // 2. Validate Input
     if (!room_id || !check_in_date || !check_out_date || !num_guests) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu room_id, check_in_date, check_out_date hoặc num_guests",
+        message: "Thiếu thông tin bắt buộc (phòng, ngày, số khách)",
       });
     }
 
@@ -206,85 +206,62 @@ exports.createBookingForCustomer = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (checkIn < today) {
-      return res.status(400).json({
-        success: false,
-        message: "Ngày check-in không được nhỏ hơn hôm nay",
-      });
-    }
+    if (checkIn < today)
+      return res
+        .status(400)
+        .json({ success: false, message: "Ngày check-in không hợp lệ" });
+    if (checkOut <= checkIn)
+      return res
+        .status(400)
+        .json({ success: false, message: "Ngày check-out phải sau check-in" });
 
-    if (checkOut <= checkIn) {
-      return res.status(400).json({
-        success: false,
-        message: "Ngày check-out phải sau ngày check-in",
-      });
-    }
-
-    // 1️⃣ Lấy thông tin phòng + loại phòng
+    // 3. Lấy thông tin Phòng
     const { data: room, error: roomError } = await supabase
       .from("rooms")
       .select(
         `
-        id,
-        room_number,
-        status,
-        room_type_id,
-        room_types (
-          id,
-          name,
-          max_guests,
-          base_price
-        )
+        id, room_number, status, 
+        room_types (id, name, max_guests, base_price)
       `
       )
       .eq("id", room_id)
       .single();
 
-    if (roomError || !room) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy phòng",
-      });
-    }
+    if (roomError || !room)
+      return res
+        .status(404)
+        .json({ success: false, message: "Phòng không tồn tại" });
 
+    // Nếu phòng ĐANG ở trạng thái maintenance thì không cho đặt
     if (room.status === "maintenance") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Phòng đang bảo trì, không thể đặt" });
+    }
+
+    // 4. Kiểm tra số khách (ĐÃ NỚI LỎNG)
+    const settings = await getSystemSettings();
+    const stdGuests = room.room_types.max_guests || settings.maxGuests;
+    const HARD_LIMIT = stdGuests + 3; // Cho phép vượt quá tối đa 3 người
+
+    if (num_guests > HARD_LIMIT) {
       return res.status(400).json({
         success: false,
-        message: "Phòng đang bảo trì, không thể đặt",
+        message: `Phòng này chỉ nhận tối đa ${HARD_LIMIT} khách (bao gồm ở ghép).`,
       });
     }
 
-    // 2️⃣ Kiểm tra số khách (QĐ2)
-    const maxGuests = room.room_types.max_guests || 3;
-    if (num_guests > maxGuests) {
-      return res.status(400).json({
-        success: false,
-        message: `Số khách tối đa cho phòng này là ${maxGuests}`,
-      });
-    }
+    // 5. Kiểm tra Trùng lịch
+    const { data: conflictBookings } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("room_id", room_id)
+      .in("status", ["pending", "confirmed", "checked_in"])
+      .or(
+        `and(check_in_date.lte.${check_out_date},check_out_date.gte.${check_in_date})`
+      );
 
-    // 3️⃣ Kiểm tra phòng còn trống trong khoảng ngày hay không
-    // 3.1. Booking trùng
-    const { data: conflictBookings, error: conflictBookingError } =
-      await supabase
-        .from("bookings")
-        .select("id")
-        .eq("room_id", room_id)
-        .in("status", ["pending", "confirmed", "checked_in"])
-        .or(
-          `and(check_in_date.lte.${check_out_date},check_out_date.gte.${check_in_date})`
-        );
-
-    if (conflictBookingError) {
-      console.error("Check conflict bookings error:", conflictBookingError);
-      return res.status(500).json({
-        success: false,
-        message: "Lỗi khi kiểm tra lịch đặt phòng",
-      });
-    }
-
-    // 3.2. Rental đang active trùng
-    const { data: conflictRentals, error: conflictRentalError } = await supabase
+    const { data: conflictRentals } = await supabase
       .from("rentals")
       .select("id")
       .eq("room_id", room_id)
@@ -293,89 +270,78 @@ exports.createBookingForCustomer = async (req, res) => {
         `and(start_date.lte.${check_out_date},end_date.gte.${check_in_date})`
       );
 
-    if (conflictRentalError) {
-      console.error("Check conflict rentals error:", conflictRentalError);
-      return res.status(500).json({
-        success: false,
-        message: "Lỗi khi kiểm tra lịch thuê phòng",
-      });
-    }
-
     if (
       (conflictBookings && conflictBookings.length > 0) ||
       (conflictRentals && conflictRentals.length > 0)
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Phòng đã được đặt/thuê trong khoảng thời gian này",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Phòng đã kín trong thời gian này" });
     }
 
-    // 4️⃣ Tạo booking
+    // 6. Tính toán tiền cọc (Nếu FE gửi 0 thì BE tự tính)
+    let finalDeposit = deposit_amount;
+    if (!finalDeposit) {
+      const nights =
+        Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)) || 1;
+      const basePrice = room.room_types.base_price;
+      let totalEst = basePrice * nights;
+
+      // Tính phụ thu nếu quá người
+      if (num_guests > stdGuests) {
+        const extra = num_guests - stdGuests;
+        totalEst += basePrice * settings.surchargeRate * extra * nights;
+      }
+
+      // Tính tiền cọc
+      finalDeposit = totalEst * (settings.depositPercent / 100);
+    }
+
+    // 7. Tạo Booking
     const { data: newBooking, error: insertError } = await supabase
       .from("bookings")
       .insert({
-        customer_id: user.customerId, // Lấy từ token người dùng đăng nhập
+        customer_id: user.customerId,
         room_id,
         check_in_date,
         check_out_date,
+        num_guests,
+        deposit_amount: finalDeposit,
         status: "pending",
-        deposit_amount,
         created_by: user.userId,
+        note,
       })
-      .select(
-        `
-      id,
-      customer_id,
-      room_id,
-      check_in_date,
-      check_out_date,
-      status,
-      deposit_amount,
-      created_at,
-      room:rooms (
-        id,
-        room_number,
-        room_type:room_types (
-          id,
-          name,
-          base_price,
-          max_guests
-        )
-      )
-    `
-      )
+      .select()
       .single();
+
     if (insertError) {
-      console.error("createBookingForCustomer insertError:", insertError);
-      return res.status(500).json({
-        success: false,
-        message: "Lỗi khi tạo booking",
-      });
+      console.error("Booking Error:", insertError);
+      return res
+        .status(500)
+        .json({ success: false, message: "Lỗi tạo đơn đặt phòng" });
     }
+
+    // 8. Cập nhật trạng thái phòng -> 'maintenance' (THEO YÊU CẦU CỦA BẠN)
+    // Lưu ý: Việc này sẽ làm phòng chuyển sang màu xám/bảo trì ngay lập tức
     const { error: updateRoomError } = await supabase
       .from("rooms")
-      .update({ status: "maintenance" }) // Theo yêu cầu của bạn
+      .update({ status: "maintenance" })
       .eq("id", room_id);
 
     if (updateRoomError) {
       console.error("Lỗi update status phòng:", updateRoomError);
-      // Có thể cân nhắc rollback booking nếu cần thiết
     }
+
     return res.status(201).json({
       success: true,
-      message: "Tạo booking thành công",
+      message: "Đặt phòng thành công",
       data: newBooking,
     });
   } catch (err) {
-    console.error("createBookingForCustomer exception:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi server",
-    });
+    console.error("Server Error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi máy chủ" });
   }
 };
-
 // =====================
 // DELETE /api/v1/bookings/:id
 // Khách hủy booking của chính mình
@@ -461,10 +427,9 @@ exports.getBookingsForStaffAdmin = async (req, res) => {
   try {
     const user = req.user;
     if (!user || !["staff", "admin"].includes(user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: "Chỉ staff/admin được xem danh sách booking",
-      });
+      return res
+        .status(403)
+        .json({ success: false, message: "Không có quyền truy cập" });
     }
 
     const { status, room_id, from, to } = req.query;
@@ -478,22 +443,28 @@ exports.getBookingsForStaffAdmin = async (req, res) => {
         check_in_date,
         check_out_date,
         deposit_amount,
+        num_guests, 
         created_at,
-        customers (
+        
+        customer:customers (
           id,
           full_name,
           phone_number,
           email
         ),
-        rooms (
+        
+        room:rooms (
           id,
           room_number,
-          room_type_id
+          room_type:room_types (
+            name
+          )
         )
       `
       )
       .order("created_at", { ascending: false });
 
+    // Các bộ lọc giữ nguyên
     if (status) query = query.eq("status", status);
     if (room_id) query = query.eq("room_id", room_id);
     if (from) query = query.gte("check_in_date", from);
@@ -503,23 +474,19 @@ exports.getBookingsForStaffAdmin = async (req, res) => {
 
     if (error) {
       console.error("getBookingsForStaffAdmin error:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Lỗi khi lấy danh sách booking",
-      });
+      return res
+        .status(500)
+        .json({ success: false, message: "Lỗi lấy dữ liệu" });
     }
-    console.log("Retrieved bookings:", bookings);
+
     return res.json({
       success: true,
-      message: "Lấy danh sách booking thành công",
+      message: "Lấy danh sách thành công",
       data: bookings,
     });
   } catch (err) {
-    console.error("getBookingsForStaffAdmin exception:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi server",
-    });
+    console.error("Server Error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
 
@@ -627,12 +594,10 @@ exports.updateBooking = async (req, res) => {
       const newCheckOut = check_out_date || booking.check_out_date;
 
       if (new Date(newCheckOut) <= new Date(newCheckIn)) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Ngày check-out phải sau check-in",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Ngày check-out phải sau check-in",
+        });
       }
 
       // Check trùng (loại trừ chính booking này ra)
@@ -647,12 +612,10 @@ exports.updateBooking = async (req, res) => {
         );
 
       if (conflicts && conflicts.length > 0) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Phòng đã bị đặt trong khoảng thời gian mới",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Phòng đã bị đặt trong khoảng thời gian mới",
+        });
       }
     }
 
@@ -710,12 +673,10 @@ exports.extendBooking = async (req, res) => {
     }
 
     if (new Date(new_check_out_date) <= new Date(booking.check_out_date)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Ngày mới phải sau ngày check-out cũ",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Ngày mới phải sau ngày check-out cũ",
+      });
     }
 
     // Check trùng lịch cho khoảng thời gian gia hạn thêm
@@ -730,12 +691,10 @@ exports.extendBooking = async (req, res) => {
       );
 
     if (conflicts && conflicts.length > 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Phòng đã có người đặt trong những ngày gia hạn thêm",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Phòng đã có người đặt trong những ngày gia hạn thêm",
+      });
     }
 
     const { data: updated, error: updateError } = await supabase
