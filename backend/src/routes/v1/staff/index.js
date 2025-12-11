@@ -11,10 +11,10 @@ const roomRoutes = require("./roomRoutes");
 router.use(authenticate);
 router.use(authorize(["admin", "staff"]));
 // STAFF: xem danh sách booking
-router.get('/bookings', bookingController.getBookingsForStaffAdmin);
-
+router.get("/bookings", bookingController.getBookingsForStaffAdmin);
+router.put("/bookings/:id", bookingController.updateBooking); // Mục 3
 // STAFF: hủy booking
-router.delete('/bookings/:id', bookingController.cancelBookingByStaffAdmin);
+router.delete("/bookings/:id", bookingController.cancelBookingByStaffAdmin);
 
 // STAFF: quản lý khách hàng
 router.use("/customers", customerRoutes); // -> /api/v1/staff/customers
@@ -26,12 +26,12 @@ router.use("/checkin", checkInRoutes); // -> /api/v1/staff/checkin
 router.use("/checkout", checkOutRoutes); // -> /api/v1/staff/checkout
 
 //Yêu cầu dịch vụ
-router.use("/services", serviceRoutes);  // -> /api/v1/staff/services
+router.use("/services", serviceRoutes); // -> /api/v1/staff/services
 
 // STAFF: quản lý phòng
 router.use("/rooms", roomRoutes); // -> /api/v1/staff/rooms
 
-router.use('/finance', require('./financeRoutes'));
+router.use("/finance", require("./financeRoutes"));
 
 module.exports = router;
 // backend/src/routes/v1/staff/index.js

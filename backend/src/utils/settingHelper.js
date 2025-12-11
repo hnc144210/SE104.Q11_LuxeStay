@@ -5,25 +5,34 @@ const supabase = createClient(
 );
 
 exports.getSystemSettings = async () => {
-  const { data, error } = await supabase.from("settings").select("key, value");
+  // 👇 SỬA Ở ĐÂY: Đổi "settings" thành "regulations"
+  const { data, error } = await supabase
+    .from("regulations")
+    .select("key, value");
 
   if (error) {
     console.error("Lỗi lấy settings:", error);
-    return {}; // Trả về rỗng nếu lỗi
+    // Trả về giá trị mặc định để không crash app
+    return {
+      depositPercent: 50,
+      foreignFactor: 1.5,
+      maxGuests: 3,
+      surchargeRate: 0.25,
+    };
   }
 
-  // Chuyển mảng [{key: 'deposit_percentage', value: '50'}]
-  // thành object { deposit_percentage: 50, foreign_coefficient: 1.5 ... }
   const settings = {};
-  data.forEach((item) => {
-    // Ép kiểu số cho giá trị
-    settings[item.key] = Number(item.value);
-  });
+  if (data) {
+    data.forEach((item) => {
+      settings[item.key] = Number(item.value);
+    });
+  }
 
   return {
-    depositPercent: settings.deposit_percentage || 50, // Mặc định 50%
-    foreignFactor: settings.foreign_coefficient || 1.5, // Mặc định 1.0
-    maxGuests: settings.max_guests_per_room || 3, // Mặc định 3
-    surchargeRate: settings.surcharge_rate || 0.25, // Mặc định 0
+    // Map đúng key trong DB sang biến sử dụng
+    depositPercent: settings.deposit_percentage || 50,
+    foreignFactor: settings.foreign_coefficient || 1.5,
+    maxGuests: settings.max_guests_per_room || 3,
+    surchargeRate: settings.surcharge_rate || 0.25,
   };
 };

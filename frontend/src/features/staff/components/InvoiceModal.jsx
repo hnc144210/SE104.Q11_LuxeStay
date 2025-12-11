@@ -164,7 +164,7 @@ const InvoiceModal = ({ invoiceId, invoiceData, onClose }) => {
                   </span>
                 </td>
                 <td className="py-2 px-2 text-center text-[11px] text-gray-500">
-                  {basePrice.toLocaleString()}/đ
+                  VNĐ
                 </td>
                 <td className="py-2 px-2 text-center font-medium">{nights}</td>
                 <td className="py-2 px-2 text-right font-bold text-gray-900">

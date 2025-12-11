@@ -25,6 +25,7 @@ const RentalDetailModal = ({ rentalId, onClose, onUpdateSuccess }) => {
     try {
       setLoading(true);
       const res = await getRentalById(rentalId);
+
       if (res.success) {
         setRental(res.data);
         // Set mặc định ngày kết thúc hiện tại vào ô input
