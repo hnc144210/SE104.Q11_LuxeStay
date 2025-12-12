@@ -1,123 +1,112 @@
-import e from "cors";
 import React from "react";
-import {
-  FaFacebookF,
-  FaInstagram,
-  FaTwitter,
-  FaGooglePlay,
-  FaApple,
-} from "react-icons/fa";
+import { FaFacebookF, FaInstagram, FaTwitter } from "react-icons/fa";
 
 export const Footer = () => {
   return (
-    <footer className="bg-white pt-20 pb-10 px-4 md:px-20 border-t border-gray-100 font-sans">
+    <footer className="bg-white pt-20 pb-10 px-4 md:px-20 border-t border-gray-100 font-sans relative overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-5 gap-10 mb-16">
         {/* CỘT 1: Logo & Slogan */}
         <div className="col-span-1 md:col-span-2 space-y-6">
-          <h2 className="text-3xl font-bold text-text-dark tracking-tight">
+          <h2 className="text-3xl font-bold text-[#181E4B] tracking-tight">
             Luxe Stay
           </h2>
-          <p className="text-text-light text-sm leading-relaxed max-w-xs">
-            Book your trip in minute, get full Control for much longer.
+          <p className="text-gray-500 text-sm leading-relaxed max-w-xs">
+            Đặt kỳ nghỉ mơ ước chỉ trong vài phút, tận hưởng trọn vẹn sự tiện
+            nghi và đẳng cấp dài lâu.
           </p>
         </div>
 
-        {/* CỘT 2: Company */}
+        {/* CỘT 2: Công ty */}
         <div className="space-y-6">
-          <h3 className="text-xl font-bold text-text-dark">Company</h3>
-          <ul className="space-y-4 text-text-light font-medium">
+          <h3 className="text-xl font-bold text-[#181E4B]">Công ty</h3>
+          <ul className="space-y-4 text-gray-500 font-medium">
             <li>
-              <a href="#" className="hover:text-primary transition">
-                About
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Về chúng tôi
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Careers
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Tuyển dụng
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Mobile
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Ứng dụng di động
               </a>
             </li>
           </ul>
         </div>
 
-        {/* CỘT 3: Contact */}
+        {/* CỘT 3: Liên hệ */}
         <div className="space-y-6">
-          <h3 className="text-xl font-bold text-text-dark">Contact</h3>
-          <ul className="space-y-4 text-text-light font-medium">
+          <h3 className="text-xl font-bold text-[#181E4B]">Liên hệ</h3>
+          <ul className="space-y-4 text-gray-500 font-medium">
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Help/FAQ
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Trợ giúp / FAQ
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Press
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Báo chí
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Affiliates
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Đối tác liên kết
               </a>
             </li>
           </ul>
         </div>
 
-        {/* CỘT 4: More */}
+        {/* CỘT 4: Khám phá */}
         <div className="space-y-6">
-          <h3 className="text-xl font-bold text-text-dark">More</h3>
-          <ul className="space-y-4 text-text-light font-medium">
+          <h3 className="text-xl font-bold text-[#181E4B]">Khám phá</h3>
+          <ul className="space-y-4 text-gray-500 font-medium">
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Airlinefees
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Ưu đãi mùa hè
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Airline
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Dịch vụ đưa đón
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary transition">
-                Low fare tips
+              <a href="#" className="hover:text-[#DF6951] transition">
+                Mẹo du lịch giá rẻ
               </a>
             </li>
           </ul>
         </div>
 
-        {/* CỘT 5: Social & App (Dành cho phần icon bên phải) */}
+        {/* CỘT 5: Mạng xã hội (Social) */}
         <div className="col-span-1 md:col-span-5 lg:col-span-1 flex flex-col gap-6">
-          {/* Social Icons */}
           <div className="flex gap-4">
-            <button className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition text-black">
+            <button className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition text-blue-600">
               <FaFacebookF size={20} />
             </button>
             <button className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:opacity-90 transition">
               <FaInstagram size={20} />
             </button>
-            <button className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition text-black">
+            <button className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition text-blue-400">
               <FaTwitter size={20} />
             </button>
           </div>
-
-          {/* App Store Buttons */}
         </div>
       </div>
 
       {/* Copyright */}
-      <div className="text-center text-text-light text-sm font-medium mt-10">
-        All rights reserved@luxestay.com
+      <div className="text-center text-gray-400 text-sm font-medium mt-10 pt-10 border-t border-gray-100">
+        Bản quyền © 2025 LuxeStay. Bảo lưu mọi quyền.
       </div>
 
-      {/* Decorative Plus Signs (Optional - Giống ảnh mẫu góc phải trên) */}
-      <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none hidden md:block">
-        {/* Bạn có thể thêm file ảnh decor vào đây nếu muốn */}
-      </div>
+      {/* Decor góc phải dưới (Tùy chọn) */}
+      <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-50 rounded-full blur-3xl -z-10 opacity-50"></div>
     </footer>
   );
 };
+
 export default Footer;
-//layout/Footer.jsx

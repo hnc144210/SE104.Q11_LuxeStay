@@ -1,24 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
-import { createBooking } from "./api/bookingApi";
+import { createBooking, getCustomerDetail } from "./api/bookingApi"; // Import API vừa sửa
 import { useAuthContext } from "../../features/context/AuthContext";
-import { Info, CheckCircle } from "lucide-react";
+import { Info, CheckCircle, Loader2 } from "lucide-react";
 
-// --- CẤU HÌNH HỆ THỐNG (Giả lập lấy từ DB) ---
+// --- CẤU HÌNH HỆ THỐNG ---
 const SYSTEM_SETTINGS = {
-  SURCHARGE_RATE: 0.25, // Phụ thu 25% cho mỗi khách vượt quá
-  FOREIGN_COEFFICIENT: 1.5, // Hệ số 1.5 cho khách nước ngoài
-  DEPOSIT_PERCENT: 50, // Cọc 50%
-  STANDARD_CAPACITY: 3, // ✅ LUẬT MỚI: Tối đa 3 người không tính phí
+  SURCHARGE_RATE: 0.25,
+  FOREIGN_COEFFICIENT: 1.5,
+  DEPOSIT_PERCENT: 50,
+  STANDARD_CAPACITY: 3,
 };
 
 const BookingConfirmationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user } = useAuthContext(); // Dữ liệu fallback từ token (email, name)
 
-  // Lấy dữ liệu từ trang trước
+  // State lưu thông tin chi tiết từ DB (có sđt, type)
+  const [customer, setCustomer] = useState(null);
+  const [loadingCustomer, setLoadingCustomer] = useState(true);
+
+  // Lấy dữ liệu từ trang Search/Room Detail
   const bookingData = location.state || {};
   const {
     room,
@@ -30,8 +34,6 @@ const BookingConfirmationPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [note, setNote] = useState("");
-
-  // Mặc định chọn 1 người hoặc số người đã chọn từ trang search
   const [numGuests, setNumGuests] = useState(parseInt(initialMaxGuests) || 1);
 
   const [priceBreakdown, setPriceBreakdown] = useState({
@@ -43,7 +45,25 @@ const BookingConfirmationPage = () => {
     depositAmount: 0,
   });
 
-  // --- LOGIC TÍNH TOÁN GIÁ CHI TIẾT ---
+  // --- 1. GỌI API LẤY THÔNG TIN KHÁCH (Khi vào trang) ---
+  useEffect(() => {
+    const fetchCustomerInfo = async () => {
+      try {
+        setLoadingCustomer(true);
+        const res = await getCustomerDetail(); // Gọi endpoint /users/me
+        if (res.success && res.data) {
+          setCustomer(res.data);
+        }
+      } catch (err) {
+        console.error("Fetch customer error:", err);
+      } finally {
+        setLoadingCustomer(false);
+      }
+    };
+    fetchCustomerInfo();
+  }, []);
+
+  // --- 2. TÍNH TOÁN GIÁ (Tự động chạy lại khi customer hoặc số người thay đổi) ---
   useEffect(() => {
     if (!room || !check_in_date || !check_out_date) return;
 
@@ -53,41 +73,31 @@ const BookingConfirmationPage = () => {
       1,
       Math.ceil((end - start) / (1000 * 60 * 60 * 24))
     );
-
     const basePrice = room.price || room.room_types?.base_price || 0;
 
-    // 1. Tiền phòng cơ bản
+    // A. Tiền phòng
     const roomCharge = basePrice * nights;
 
-    // 2. Tính Phụ thu quá người
-    // ✅ LUẬT MỚI: Chỉ tính tiền nếu khách > 3
-    const standardCapacity = SYSTEM_SETTINGS.STANDARD_CAPACITY;
+    // B. Phụ thu quá người
     let surcharge = 0;
-
-    if (numGuests > standardCapacity) {
-      const extraPeople = numGuests - standardCapacity;
-      // Công thức: Giá * 0.25 * số người thừa * số đêm
+    if (numGuests > SYSTEM_SETTINGS.STANDARD_CAPACITY) {
+      const extraPeople = numGuests - SYSTEM_SETTINGS.STANDARD_CAPACITY;
       surcharge =
         basePrice * SYSTEM_SETTINGS.SURCHARGE_RATE * extraPeople * nights;
     }
 
-    // 3. Tính Phụ thu khách nước ngoài
+    // C. Phụ thu khách nước ngoài
     let foreignSurcharge = 0;
-    // Kiểm tra an toàn biến user
-    const isForeigner = user?.type === "foreign";
-
-    // Tổng tạm tính (đã bao gồm phụ thu người)
     const tempTotal = roomCharge + surcharge;
 
+    // Ưu tiên check type từ DB, nếu không có thì mặc định domestic
+    const isForeigner = customer?.type === "foreign";
+
     if (isForeigner) {
-      // Cách tính: (Tổng tạm) * (1.5 - 1) -> Tăng 50% trên tổng bill
       foreignSurcharge = tempTotal * (SYSTEM_SETTINGS.FOREIGN_COEFFICIENT - 1);
     }
 
-    // 4. Tổng cuối cùng
     const totalEstimate = tempTotal + foreignSurcharge;
-
-    // 5. Tiền cọc (50%)
     const depositAmount =
       totalEstimate * (SYSTEM_SETTINGS.DEPOSIT_PERCENT / 100);
 
@@ -99,7 +109,7 @@ const BookingConfirmationPage = () => {
       totalEstimate,
       depositAmount,
     });
-  }, [numGuests, user, room, check_in_date, check_out_date]);
+  }, [numGuests, customer, room, check_in_date, check_out_date]);
 
   const handleConfirmBooking = async () => {
     try {
@@ -119,7 +129,6 @@ const BookingConfirmationPage = () => {
 
       if (response.success) {
         const createdBooking = response.data;
-
         const successState = {
           id: createdBooking.id,
           roomName: createdBooking.room?.room_type?.name || room.name,
@@ -129,10 +138,10 @@ const BookingConfirmationPage = () => {
           num_guests: numGuests,
           deposit_amount: createdBooking.deposit_amount,
           total_amount: priceBreakdown.totalEstimate,
-          customer_email: user?.email,
+          // Ưu tiên lấy email từ customer DB, nếu không thì lấy từ AuthContext
+          customer_email: customer?.email || user?.email,
           note: note,
         };
-
         navigate("/booking-success", { state: successState });
       }
     } catch (err) {
@@ -157,55 +166,73 @@ const BookingConfirmationPage = () => {
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* === CỘT TRÁI: THÔNG TIN & FORM === */}
+          {/* === CỘT TRÁI === */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Info Khách */}
+            {/* 1. THÔNG TIN KHÁCH HÀNG */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
                 👤 Thông tin khách hàng
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-500 block text-xs uppercase">
-                    Họ tên
-                  </span>
-                  <span className="font-medium">
-                    {user?.full_name || "---"}
-                  </span>
+
+              {loadingCustomer ? (
+                <div className="flex justify-center py-4 text-blue-500 gap-2">
+                  <Loader2 className="animate-spin" /> Đang tải hồ sơ...
                 </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-500 block text-xs uppercase">
-                    Email
-                  </span>
-                  <span className="font-medium">{user?.email || "---"}</span>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  {/* Họ tên */}
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <span className="text-gray-500 block text-xs uppercase mb-1">
+                      Họ tên
+                    </span>
+                    <span className="font-bold text-gray-800 text-base">
+                      {customer?.full_name || user?.full_name || "---"}
+                    </span>
+                  </div>
+                  {/* Email */}
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <span className="text-gray-500 block text-xs uppercase mb-1">
+                      Email
+                    </span>
+                    <span className="font-medium text-gray-700">
+                      {customer?.email || user?.email || "---"}
+                    </span>
+                  </div>
+                  {/* SĐT */}
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <span className="text-gray-500 block text-xs uppercase mb-1">
+                      Số điện thoại
+                    </span>
+                    <span className="font-medium text-gray-700">
+                      {customer?.phone_number || "Chưa cập nhật"}
+                    </span>
+                  </div>
+                  {/* Loại khách */}
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <span className="text-gray-500 block text-xs uppercase mb-1">
+                      Quốc tịch / Loại khách
+                    </span>
+                    <span
+                      className={`font-bold px-2 py-0.5 rounded text-xs inline-block ${
+                        customer?.type === "foreign"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {customer?.type === "foreign"
+                        ? "Quốc tế (Foreign)"
+                        : "Trong nước (Domestic)"}
+                    </span>
+                  </div>
                 </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-500 block text-xs uppercase">
-                    SĐT
-                  </span>
-                  <span className="font-medium">
-                    {user?.phone_number || "---"}
-                  </span>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-500 block text-xs uppercase">
-                    Loại khách
-                  </span>
-                  <span className="font-medium capitalize">
-                    {user?.type === "foreign"
-                      ? "Quốc tế (Foreign)"
-                      : "Trong nước (Domestic)"}
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Chi tiết chuyến đi */}
+            {/* 2. CHI TIẾT CHUYẾN ĐI (Giữ nguyên code cũ) */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
                 ✈️ Chi tiết chuyến đi
               </h3>
-
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg text-center border border-blue-100">
                   <p className="text-sm text-blue-600 font-medium mb-1">
@@ -225,7 +252,7 @@ const BookingConfirmationPage = () => {
                 </div>
               </div>
 
-              {/* CHỌN SỐ KHÁCH */}
+              {/* Dropdown số khách */}
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-bold text-gray-700">
                   Số lượng khách
@@ -234,12 +261,10 @@ const BookingConfirmationPage = () => {
                   <select
                     value={numGuests}
                     onChange={(e) => setNumGuests(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white font-medium text-gray-700"
+                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-gray-700"
                   >
-                    {/* Tạo options tối đa 6 người để test */}
                     {[...Array(6)].map((_, i) => {
                       const val = i + 1;
-                      // Nếu lớn hơn 3 người -> Hiện cảnh báo có phụ thu
                       const isExtra = val > SYSTEM_SETTINGS.STANDARD_CAPACITY;
                       return (
                         <option key={val} value={val}>
@@ -253,24 +278,20 @@ const BookingConfirmationPage = () => {
                       );
                     })}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    ▼
-                  </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                   <Info size={12} />
                   <span>
-                    Phòng tiêu chuẩn{" "}
-                    <strong>{SYSTEM_SETTINGS.STANDARD_CAPACITY} người</strong>.
-                    Khách thứ {SYSTEM_SETTINGS.STANDARD_CAPACITY + 1} trở đi sẽ
-                    tính thêm phụ phí.
+                    Tiêu chuẩn {SYSTEM_SETTINGS.STANDARD_CAPACITY} người. Khách
+                    thứ {SYSTEM_SETTINGS.STANDARD_CAPACITY + 1} trở đi tính thêm
+                    phí.
                   </span>
                 </p>
               </div>
 
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-700">
-                  Ghi chú (Tùy chọn)
+                  Ghi chú
                 </label>
                 <textarea
                   value={note}
@@ -282,7 +303,7 @@ const BookingConfirmationPage = () => {
             </div>
           </div>
 
-          {/* === CỘT PHẢI: BILL & CONFIRM === */}
+          {/* === CỘT PHẢI: BILL (Giữ nguyên logic hiển thị giá) === */}
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 sticky top-24">
               <div className="mb-4">
@@ -301,9 +322,7 @@ const BookingConfirmationPage = () => {
                 </p>
               </div>
 
-              {/* --- BẢNG CHI TIẾT GIÁ --- */}
               <div className="border-t border-dashed border-gray-300 py-4 space-y-3 text-sm">
-                {/* 1. Giá phòng */}
                 <div className="flex justify-between text-gray-600">
                   <span>Giá thuê ({priceBreakdown.nights} đêm)</span>
                   <span className="font-medium">
@@ -311,7 +330,6 @@ const BookingConfirmationPage = () => {
                   </span>
                 </div>
 
-                {/* 2. Phụ thu quá người */}
                 {priceBreakdown.surcharge > 0 && (
                   <div className="flex justify-between text-orange-600 bg-orange-50 px-2 py-1 rounded">
                     <span className="flex items-center gap-1">
@@ -323,7 +341,6 @@ const BookingConfirmationPage = () => {
                   </div>
                 )}
 
-                {/* 3. Phụ thu nước ngoài */}
                 {priceBreakdown.foreignSurcharge > 0 && (
                   <div className="flex justify-between text-purple-600 bg-purple-50 px-2 py-1 rounded">
                     <span className="flex items-center gap-1">
@@ -343,18 +360,17 @@ const BookingConfirmationPage = () => {
                 <span>{priceBreakdown.totalEstimate.toLocaleString()} đ</span>
               </div>
 
-              {/* Thông tin tiền cọc */}
               <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-bold text-yellow-800 uppercase">
-                    Tiền cọc cần thanh toán ({SYSTEM_SETTINGS.DEPOSIT_PERCENT}%)
+                    Tiền cọc ({SYSTEM_SETTINGS.DEPOSIT_PERCENT}%)
                   </span>
                 </div>
                 <div className="text-right text-lg font-extrabold text-yellow-700">
                   {priceBreakdown.depositAmount.toLocaleString()} đ
                 </div>
                 <p className="text-[10px] text-yellow-600 mt-1 italic text-center">
-                  *Vui lòng thanh toán khoản cọc này để giữ phòng.
+                  *Vui lòng thanh toán cọc để giữ phòng.
                 </p>
               </div>
 
@@ -367,18 +383,14 @@ const BookingConfirmationPage = () => {
               <button
                 onClick={handleConfirmBooking}
                 disabled={loading}
-                className="w-full mt-6 bg-[#DF6951] text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-200 disabled:bg-gray-300 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                className="w-full mt-6 bg-[#DF6951] text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-200 disabled:bg-gray-300 flex justify-center items-center gap-2"
               >
                 {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Đang xử lý...
-                  </>
+                  <Loader2 className="animate-spin" />
                 ) : (
-                  <>
-                    <CheckCircle size={20} /> Xác nhận đặt phòng
-                  </>
+                  <CheckCircle size={20} />
                 )}
+                {loading ? "Đang xử lý..." : "Xác nhận đặt phòng"}
               </button>
             </div>
           </div>
