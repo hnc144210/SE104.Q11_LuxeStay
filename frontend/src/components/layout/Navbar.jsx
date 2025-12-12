@@ -61,13 +61,13 @@ export const Navbar = () => {
       <div className="hidden md:flex items-center gap-10">
         <ul className="flex gap-8 text-gray-800 font-medium">
           <li className="cursor-pointer hover:text-blue-500 transition">
-            Destinations
+            Điểm đến
           </li>
           <li className="cursor-pointer hover:text-blue-500 transition">
             Hotels
           </li>
           <li className="cursor-pointer hover:text-blue-500 transition">
-            Bookings
+            Khách sạn
           </li>
         </ul>
 

@@ -1,5 +1,5 @@
 import React from "react";
-import SearchForm from "./SearchForm"; // Import default (không dùng dấu ngoặc {})
+import SearchForm from "./SearchForm"; // Import default
 
 const HeroSection = () => {
   return (
@@ -12,9 +12,9 @@ const HeroSection = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-20 w-full flex-1 flex items-center">
         <div className="max-w-xl space-y-8 relative z-10">
           <h1 className="text-5xl md:text-7xl font-serif font-bold text-text-dark leading-tight">
-            Find your{" "}
+            Tìm kiếm sự{" "}
             <div className="relative inline-block">
-              <span className="relative z-10 text-primary">Comfort</span>
+              <span className="relative z-10 text-primary">Tiện nghi</span>
               <img
                 src="/picture/decore.png"
                 alt=""
@@ -22,24 +22,23 @@ const HeroSection = () => {
               />
             </div>
             <br />
-            and enjoy the
+            và tận hưởng
             <br />
-            luxury life
+            đẳng cấp thượng lưu
           </h1>
 
           <p className="text-text-light text-base leading-relaxed max-w-md font-sans">
-            We provide the best hotels and resorts at the most affordable
-            prices. Let LuxeStay take care of your sleep so you can enjoy your
-            trip.
+            Chúng tôi mang đến những khách sạn và khu nghỉ dưỡng đẳng cấp với
+            mức giá tốt nhất. Hãy để LuxeStay nâng niu giấc ngủ, giúp bạn tận
+            hưởng trọn vẹn từng khoảnh khắc của chuyến đi.
           </p>
 
           <div className="pt-4">
             <button className="bg-secondary text-white px-8 py-4 rounded-[10px] shadow-xl shadow-secondary/30 hover:bg-orange-600 hover:shadow-none transition-all font-bold text-lg font-sans">
-              Find out more
+              Khám phá ngay
             </button>
           </div>
         </div>
-        <SearchForm />
       </div>
     </section>
   );
