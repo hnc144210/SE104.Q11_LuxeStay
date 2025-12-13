@@ -65,7 +65,8 @@ exports.checkAvailability = async (req, res) => {
         )
       `
       )
-      .neq("status", "maintenance");
+      .not("status", "in", "(maintenance,occupied)");
+    // Loại bỏ phòng không thể đặt
 
     if (room_type_id) {
       roomsQuery = roomsQuery.eq("room_type_id", room_type_id);
