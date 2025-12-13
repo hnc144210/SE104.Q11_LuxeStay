@@ -23,7 +23,23 @@ export const getMyBookings = async (params) => {
     throw new Error(errorMessage);
   }
 };
-
+export const getCustomerDetail = async () => {
+  try {
+    // 👇 SỬA LẠI: Gọi đúng endpoint /users/me bạn đã có
+    const response = await axios.get(`${BASE_URL}/users/me`, {
+      headers: getAuthHeaders(),
+    });
+    // API trả về: { success: true, data: { ...customer info } }
+    return response.data;
+  } catch (error) {
+    console.warn(
+      "Lỗi lấy thông tin chi tiết khách:",
+      error.response?.data || error.message
+    );
+    // Trả về data null để Frontend tự fallback sang thông tin cơ bản trong Token
+    return { success: false, data: null };
+  }
+};
 // Tạo booking mới
 export const createBooking = async (data) => {
   // data: { room_id, check_in_date, check_out_date, num_guests, deposit_amount }

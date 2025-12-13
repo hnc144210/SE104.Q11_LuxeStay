@@ -161,3 +161,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+// frontend/src/components/layout/AdminLayout.jsx

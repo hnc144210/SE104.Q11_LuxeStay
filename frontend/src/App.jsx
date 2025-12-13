@@ -26,6 +26,7 @@ import BookingManagementPage from "./features/admin/BookingManagementPage";
 import CustomerManagementPage from "./features/admin/CustomerManagementPage";
 import StaffManagementPage from "./features/admin/StaffManagementPage";
 import ServiceManagementPage from "./features/admin/ServiceManagementPage";
+import AdminSettingsPage from "./features/admin/AdminSettingsPage";
 // Staff Pages
 import StaffDashboard from "./features/staff/StaffDashboard";
 import StaffBookingPage from "./features/staff/StaffBookingPage";
@@ -77,10 +78,7 @@ function App() {
             <Route path="customers" element={<CustomerManagementPage />} />
             <Route path="staffs" element={<StaffManagementPage />} />
             {/* Trang cài đặt chưa làm thì để tạm div */}
-            <Route
-              path="settings"
-              element={<div>Trang Cài đặt (Đang phát triển)</div>}
-            />
+            <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
           <Route path="/profile" element={<ProfilePage />} />
         </Routes>

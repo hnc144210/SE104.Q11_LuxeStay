@@ -50,10 +50,10 @@ const TestimonialsSection = () => {
       {/* --- CỘT TRÁI: TIÊU ĐỀ --- */}
       <div className="md:w-1/2 space-y-8 text-center md:text-left">
         <h3 className="text-text-light font-medium uppercase tracking-widest">
-          Testimonials
+          Chứng nhận
         </h3>
         <h2 className="text-4xl md:text-5xl font-serif font-bold text-text-dark leading-tight">
-          What People Say <br /> About Us.
+          Nhận xét <br /> Từ khách hàng
         </h2>
 
         {/* Dấu chấm điều hướng (Pagination Dots) */}

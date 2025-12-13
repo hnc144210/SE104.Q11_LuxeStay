@@ -135,4 +135,16 @@ export const extendRental = async (id, newEndDate) => {
     throw error.response?.data || error.message;
   }
 };
+export const updateBooking = async (id, data) => {
+  try {
+    const response = await axios.put(
+      `${BASE_URL}/bookings/${id}`, // Đảm bảo route backend khớp với cái này
+      data,
+      getAuthHeaders()
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
 //src/features/staff/api/staffApi.jsx

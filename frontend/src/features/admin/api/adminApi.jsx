@@ -100,7 +100,7 @@ export const deleteRoom = async (id) => {
 // ==========================================
 
 export const getStaffs = async (params) => {
-  const response = await axios.get(`${BASE_URL}/admin/staffs`, {
+  const response = await axios.get(`${BASE_URL}/admin/staff`, {
     headers: getAuthHeaders(),
     params: params,
   });
@@ -108,21 +108,21 @@ export const getStaffs = async (params) => {
 };
 
 export const getStaffById = async (id) => {
-  const response = await axios.get(`${BASE_URL}/admin/staffs/${id}`, {
+  const response = await axios.get(`${BASE_URL}/admin/staff/${id}`, {
     headers: getAuthHeaders(),
   });
   return response.data;
 };
 
 export const createStaff = async (data) => {
-  const response = await axios.post(`${BASE_URL}/admin/staffs`, data, {
+  const response = await axios.post(`${BASE_URL}/admin/staff`, data, {
     headers: getAuthHeaders(),
   });
   return response.data;
 };
 
 export const updateStaff = async (id, data) => {
-  const response = await axios.put(`${BASE_URL}/admin/staffs/${id}`, data, {
+  const response = await axios.put(`${BASE_URL}/admin/staff/${id}`, data, {
     headers: getAuthHeaders(),
   });
   return response.data;
@@ -130,7 +130,7 @@ export const updateStaff = async (id, data) => {
 
 export const updateStaffStatus = async (id, status) => {
   const response = await axios.put(
-    `${BASE_URL}/admin/staffs/${id}/status`,
+    `${BASE_URL}/admin/staff/${id}/status`,
     { status },
     { headers: getAuthHeaders() }
   );
@@ -138,7 +138,7 @@ export const updateStaffStatus = async (id, status) => {
 };
 
 export const deleteStaff = async (id) => {
-  const response = await axios.delete(`${BASE_URL}/admin/staffs/${id}`, {
+  const response = await axios.delete(`${BASE_URL}/admin/staff/${id}`, {
     headers: getAuthHeaders(),
   });
   return response.data;
@@ -203,6 +203,65 @@ export const getDashboardStats = async () => {
     const response = await axios.get(`${BASE_URL}/admin/reports/dashboard`, {
       headers: getAuthHeaders(),
     });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+export const getSystemConfig = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}/admin/config`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// 2. Cập nhật Loại phòng (Giá, Số khách tối đa...)
+export const updateRoomTypesConfig = async (roomTypes) => {
+  try {
+    // Body: { room_types: [...] }
+    const response = await axios.put(
+      `${BASE_URL}/admin/config/room-types`,
+      { room_types: roomTypes },
+      { headers: getAuthHeaders() }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// 3. Cập nhật Phụ thu khách nước ngoài
+export const updateGuestConfig = async (foreignSurchargeRatio) => {
+  try {
+    const response = await axios.put(
+      `${BASE_URL}/admin/config/guest-types`,
+      { foreign_surcharge_ratio: foreignSurchargeRatio },
+      { headers: getAuthHeaders() }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// 4. Cập nhật Phụ thu chung (Cọc, Quá người)
+export const updateSurchargesConfig = async (
+  depositPercent,
+  extraGuestRatio
+) => {
+  try {
+    const response = await axios.put(
+      `${BASE_URL}/admin/config/surcharges`,
+      {
+        deposit_percentage: depositPercent,
+        extra_guest_surcharge_ratio: extraGuestRatio,
+      },
+      { headers: getAuthHeaders() }
+    );
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
