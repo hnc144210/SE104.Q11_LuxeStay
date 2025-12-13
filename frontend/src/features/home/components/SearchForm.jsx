@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Calendar, Users, Search, Minus, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const SearchForm = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useState({
     check_in_date: "",
     check_out_date: "",
@@ -26,14 +28,14 @@ const SearchForm = () => {
     });
   };
 
-  const handleSearch = () => {
+  const handleSearch = (e) => {
+    e.preventDefault();
     if (!searchParams.check_in_date || !searchParams.check_out_date) {
       alert("Vui lòng chọn ngày nhận và trả phòng!");
       return;
     }
     const queryString = new URLSearchParams(searchParams).toString();
-    console.log("Navigate to:", `/search-results?${queryString}`);
-    alert("Tìm kiếm với:\n" + JSON.stringify(searchParams, null, 2));
+    navigate(`/search-results?${queryString}`);
   };
 
   const formatDateDisplay = (dateString) => {
