@@ -315,14 +315,6 @@ const RoomDetailsPage = () => {
                     </p>
                   </div>
                 </div>
-                <div className="p-3">
-                  <p className="text-xs font-bold uppercase text-gray-500">
-                    Khách
-                  </p>
-                  <p className="text-sm font-medium">
-                    {max_guests || room.specs.guests} người
-                  </p>
-                </div>
               </div>
 
               {(!check_in_date || !check_out_date) && (

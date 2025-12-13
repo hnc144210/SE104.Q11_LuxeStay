@@ -183,7 +183,11 @@ exports.updateStaff = async (req, res) => {
         .single();
 
       if (existCode) {
-        return errorResponse(res, 400, `Mã nhân viên ${staff_code} đã được sử dụng`);
+        return errorResponse(
+          res,
+          400,
+          `Mã nhân viên ${staff_code} đã được sử dụng`
+        );
       }
     }
 
@@ -250,5 +254,52 @@ exports.deleteStaff = async (req, res) => {
   } catch (error) {
     console.error("deleteStaff error:", error);
     return errorResponse(res, 500, "Lỗi server");
+  }
+};
+// backend/src/controllers/staffController.js
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0]; // Lấy ngày YYYY-MM-DD
+
+    // 1. Đếm khách sắp đến (Booking hôm nay + status confirmed)
+    const { count: arrivals, error: err1 } = await supabase
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "confirmed");
+
+    // 2. Đếm khách sắp đi (Booking check-out hôm nay + status checked_in)
+    // Lưu ý: Logic này giả định check-out dựa trên booking.
+    // Nếu dựa trên rental, cần query bảng rentals.
+    const { count: departures, error: err2 } = await supabase
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "checked_in");
+
+    // 3. Đếm đang lưu trú (Rentals active)
+    const { count: staying, error: err3 } = await supabase
+      .from("rentals")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "active");
+
+    // 4. Đếm phòng trống (Total rooms - Occupied - Maintenance)
+    // Cách đơn giản: Đếm phòng có status = 'available'
+    const { count: availableRooms, error: err4 } = await supabase
+      .from("rooms")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "available");
+
+    if (err1 || err2 || err3 || err4) throw new Error("Lỗi khi lấy thống kê");
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        arrivals: arrivals || 0,
+        departures: departures || 0,
+        staying: staying || 0,
+        availableRooms: availableRooms || 0,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
   }
 };
