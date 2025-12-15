@@ -35,7 +35,7 @@ const StaffCustomerPage = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">
-          Khách hàng (Staff View)
+          Thông tin khách hàng
         </h1>
         {/* Nút thêm khách ở đây nếu muốn */}
       </div>

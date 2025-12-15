@@ -19,6 +19,13 @@ const getAuthHeaders = () => {
 // --- CHECK-IN ---
 
 // Check-in từ Booking (Chỉ gửi ID và Cọc)
+export const getStaffStats = async () => {
+  const response = await axios.get(
+    `${BASE_URL}/stats`,
+    getAuthHeaders() // Gọi lại hàm helper để lấy header
+  );
+  return response.data;
+};
 export const checkInFromBooking = async (data) => {
   // data: { booking_id, deposit_amount }
   const response = await axios.post(
