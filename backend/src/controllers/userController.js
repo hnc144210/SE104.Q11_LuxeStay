@@ -455,12 +455,10 @@ exports.updateMe = async (req, res) => {
     // Validate số điện thoại nếu có thay đổi
     if (phone_number) {
       if (!/^[0-9]{10,11}$/.test(phone_number)) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Số điện thoại không hợp lệ (10-11 số)",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Số điện thoại không hợp lệ (10-11 số)",
+        });
       }
       updates.phone_number = phone_number;
     }

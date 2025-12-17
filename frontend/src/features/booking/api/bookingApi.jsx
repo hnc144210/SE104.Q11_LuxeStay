@@ -111,4 +111,16 @@ export const cancelBookingByAdmin = async (id) => {
     throw new Error(errorMessage);
   }
 };
+export const getBookingRegulations = async () => {
+  try {
+    // Endpoint: http://localhost:3000/api/v1/config/regulations
+    const response = await axios.get(`${BASE_URL}/config/regulations`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message;
+    throw new Error(errorMessage);
+  }
+};
 //bookingApi.jsx

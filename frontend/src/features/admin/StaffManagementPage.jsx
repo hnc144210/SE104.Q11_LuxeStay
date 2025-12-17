@@ -303,19 +303,6 @@ const StaffManagementPage = () => {
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 outline-none transition"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    Mức lương
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.salary}
-                    onChange={(e) =>
-                      setFormData({ ...formData, salary: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 outline-none transition"
-                  />
-                </div>
               </div>
 
               {/* Row 3: Trạng thái */}

@@ -18,17 +18,19 @@ import {
   calculateWalkInPrice,
   checkInWalkIn,
   createStaffCustomer,
+  getStaffRegulations, // <--- Import hàm mới
 } from "../api/staffApi";
-
-const SYSTEM_SETTINGS = {
-  STANDARD_CAPACITY: 3, // Tiêu chuẩn 3 người
-};
 
 const WalkInCheckIn = () => {
   const [rooms, setRooms] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bill, setBill] = useState(null);
+
+  // ✅ THÊM: State lưu cấu hình (Mặc định 3 nếu chưa load xong)
+  const [config, setConfig] = useState({
+    max_guests_per_room: 3,
+  });
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -47,19 +49,29 @@ const WalkInCheckIn = () => {
     customer_id: "",
     check_out_date: "",
     num_guests: 1,
-    // deposit_amount: 0 // Đã bỏ, khách vãng lai không cần cọc
   });
 
-  // Load dữ liệu
+  // Load dữ liệu (Rooms, Customers, Config)
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [roomRes, cusRes] = await Promise.all([
-          getStaffRooms({ status: "available" }),
+        // Gọi song song 3 API
+        const [roomRes, cusRes, configRes] = await Promise.all([
+          getStaffRooms(),
           getStaffCustomers(),
+          getStaffRegulations(), // <--- Gọi API config
         ]);
+
         setRooms(roomRes.data || []);
         setCustomers(cusRes.data || []);
+
+        // Cập nhật Config vào State
+        if (configRes.success && configRes.data) {
+          const reg = configRes.data.regulations;
+          setConfig({
+            max_guests_per_room: Number(reg.max_guests_per_room?.value) || 3,
+          });
+        }
       } catch (err) {
         console.error("Load data error:", err);
       }
@@ -133,8 +145,8 @@ const WalkInCheckIn = () => {
         room_id: form.room_id,
         customer_ids: [form.customer_id],
         check_out_date: form.check_out_date,
-        deposit_amount: 0, // ✅ Khách vãng lai mặc định cọc = 0
-        num_guests: parseInt(form.num_guests), // Gửi số khách thực tế
+        deposit_amount: 0,
+        num_guests: parseInt(form.num_guests),
       });
       alert("✅ Check-in thành công!");
       window.location.reload();
@@ -232,8 +244,8 @@ const WalkInCheckIn = () => {
               >
                 {[1, 2, 3, 4, 5, 6].map((n) => (
                   <option key={n} value={n}>
-                    {n} người{" "}
-                    {n > SYSTEM_SETTINGS.STANDARD_CAPACITY ? "(+Phí)" : ""}
+                    {n} người {/* ✅ SỬ DỤNG CONFIG TỪ STATE */}
+                    {n > config.max_guests_per_room ? "(+Phí)" : ""}
                   </option>
                 ))}
               </select>
@@ -269,7 +281,7 @@ const WalkInCheckIn = () => {
         </div>
       </div>
 
-      {/* === CỘT PHẢI: BILL PREVIEW === */}
+      {/* === CỘT PHẢI: BILL PREVIEW (Giữ nguyên) === */}
       <div className="xl:col-span-5">
         <div
           className={`bg-white rounded-xl border ${
@@ -292,7 +304,6 @@ const WalkInCheckIn = () => {
                   </span>
                 </div>
 
-                {/* Phụ thu */}
                 {(bill.surcharge > 0 || bill.foreign_surcharge > 0) && (
                   <div className="bg-gray-50 p-2 rounded border border-gray-100 space-y-1">
                     {bill.surcharge > 0 && (
@@ -350,7 +361,7 @@ const WalkInCheckIn = () => {
         </div>
       </div>
 
-      {/* Modal Tạo Khách (Form giữ nguyên) */}
+      {/* Modal Tạo Khách (Giữ nguyên) */}
       {showCustomerModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl overflow-hidden">

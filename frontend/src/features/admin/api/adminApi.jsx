@@ -239,7 +239,10 @@ export const updateGuestConfig = async (foreignSurchargeRatio) => {
   try {
     const response = await axios.put(
       `${BASE_URL}/admin/config/guest-types`,
-      { foreign_surcharge_ratio: foreignSurchargeRatio },
+      {
+        // Gửi đúng key DB đang dùng
+        foreign_guest_surcharge_ratio: foreignSurchargeRatio,
+      },
       { headers: getAuthHeaders() }
     );
     return response.data;
@@ -248,17 +251,19 @@ export const updateGuestConfig = async (foreignSurchargeRatio) => {
   }
 };
 
-// 4. Cập nhật Phụ thu chung (Cọc, Quá người)
+// 4. Cập nhật Quy định chung (Cọc, Phụ thu quá người, Max người)
 export const updateSurchargesConfig = async (
   depositPercent,
-  extraGuestRatio
+  surchargeRate, // Tên biến mới khớp với DB
+  maxGuests // Thêm cái này vì DB có
 ) => {
   try {
     const response = await axios.put(
       `${BASE_URL}/admin/config/surcharges`,
       {
         deposit_percentage: depositPercent,
-        extra_guest_surcharge_ratio: extraGuestRatio,
+        surcharge_rate: surchargeRate, // Sửa key: extra_guest... -> surcharge_rate
+        max_guests_per_room: maxGuests, // Thêm key này
       },
       { headers: getAuthHeaders() }
     );

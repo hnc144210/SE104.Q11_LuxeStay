@@ -314,65 +314,123 @@ exports.checkInWalkIn = async (req, res) => {
 exports.calculateWalkInPrice = async (req, res) => {
   try {
     const { room_id, check_out_date, customer_ids, num_guests } = req.body;
-    const settings = await getSystemSettings();
 
-    const { data: room } = await supabase
-      .from("rooms")
-      .select("*, room_types(*)")
-      .eq("id", room_id)
-      .single();
-    if (!room) return errorResponse(res, 404, "Phòng không tồn tại");
+    // 1. Lấy thông tin Phòng và Quy định hệ thống song song (để tối ưu tốc độ)
+    const [roomRes, regRes] = await Promise.all([
+      supabase
+        .from("rooms")
+        .select("*, room_types(*)")
+        .eq("id", room_id)
+        .single(),
+      supabase
+        .from("regulations")
+        .select("*")
+        .in("key", [
+          "max_guests_per_room",
+          "surcharge_rate",
+          "foreign_guest_surcharge_ratio",
+        ]),
+    ]);
 
-    const nights = calculateNights(new Date(), check_out_date);
-    const basePrice = room.room_types.base_price;
-    const roomCharge = basePrice * nights;
+    const room = roomRes.data;
+    if (!room)
+      return res
+        .status(404)
+        .json({ success: false, message: "Phòng không tồn tại" });
 
-    // Phụ thu quá người
-    let surcharge = 0;
-    const actualTotalGuests = num_guests
-      ? parseInt(num_guests)
-      : customer_ids
-      ? customer_ids.length
-      : 1;
-    const maxGuestsAllowed = room.room_types.max_guests || settings.maxGuests;
+    // 2. Parse Quy định từ mảng sang Object để dễ dùng
+    // Default fallback nếu DB chưa có dữ liệu
+    const config = {
+      max_guests: 3,
+      surcharge_rate: 0.25,
+      foreign_ratio: 1.5,
+    };
 
-    if (actualTotalGuests > maxGuestsAllowed) {
-      const extra = actualTotalGuests - maxGuestsAllowed;
-      surcharge = basePrice * settings.surchargeRate * extra * nights;
+    if (regRes.data) {
+      regRes.data.forEach((item) => {
+        if (item.key === "max_guests_per_room")
+          config.max_guests = Number(item.value);
+        if (item.key === "surcharge_rate")
+          config.surcharge_rate = Number(item.value);
+        if (item.key === "foreign_guest_surcharge_ratio")
+          config.foreign_ratio = Number(item.value);
+      });
     }
 
-    // Phụ thu nước ngoài
-    let foreignSurcharge = 0;
-    let tempTotal = roomCharge + surcharge;
+    // 3. Tính số đêm (Check-in là NOW, Check-out là input)
+    const checkIn = new Date(); // Walk-in là vào ngay bây giờ
+    const checkOut = new Date(check_out_date);
 
-    if (customer_ids?.length > 0) {
+    // Tính khoảng cách ngày, tối thiểu là 1 đêm
+    const diffTime = checkOut.getTime() - checkIn.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const nights = Math.max(1, diffDays);
+
+    // 4. Tính tiền phòng cơ bản
+    const basePrice = Number(room.room_types.base_price);
+    const roomCharge = basePrice * nights;
+
+    // 5. Tính phụ thu quá người
+    let surcharge = 0;
+    // Ưu tiên lấy num_guests từ input form, nếu không có thì đếm số khách chọn
+    const actualGuests = num_guests
+      ? parseInt(num_guests)
+      : customer_ids?.length || 1;
+
+    // So sánh với quy định hệ thống (hoặc quy định riêng của loại phòng nếu muốn)
+    // Ở đây dùng quy định chung hệ thống như yêu cầu
+    if (actualGuests > config.max_guests) {
+      const extraPeople = actualGuests - config.max_guests;
+      // Công thức: Giá gốc * Tỉ lệ * Số người thừa * Số đêm
+      surcharge = basePrice * config.surcharge_rate * extraPeople * nights;
+    }
+
+    // 6. Tính phụ thu khách nước ngoài
+    let foreignSurcharge = 0;
+    const tempTotal = roomCharge + surcharge;
+
+    // Kiểm tra trong danh sách khách có ai là người nước ngoài không
+    if (customer_ids && customer_ids.length > 0) {
       const { data: customers } = await supabase
-        .from("customers")
+        .from("customers") // Lưu ý: Staff module dùng bảng 'customers' riêng
         .select("type")
         .in("id", customer_ids);
-      if (customers?.some((c) => c.type === "foreign")) {
-        foreignSurcharge = tempTotal * (settings.foreignFactor - 1);
+
+      if (customers && customers.some((c) => c.type === "foreign")) {
+        // Công thức: Tổng tạm tính * (Hệ số - 1)
+        // Ví dụ: Hệ số 1.5 => Phụ thu thêm 0.5 (50%)
+        foreignSurcharge = tempTotal * (config.foreign_ratio - 1);
       }
     }
 
+    // 7. Tổng cuối cùng
     const finalTotal = tempTotal + foreignSurcharge;
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       data: {
-        room_number: room.room_number, // Trả thêm số phòng để hiển thị bill
+        room_number: room.room_number,
+        room_type_name: room.room_types.name,
         room_price: basePrice,
         nights,
         room_charge: roomCharge,
-        surcharge,
-        foreign_surcharge: foreignSurcharge,
+        surcharge: surcharge, // Tiền quá người
+        foreign_surcharge: foreignSurcharge, // Tiền khách nước ngoài
         total_price: finalTotal,
-        deposit_amount: 0, // 👈 Preview trả về 0
-        deposit_percentage: 0,
+        // Các thông số để Frontend hiển thị giải thích
+        debug_info: {
+          max_guests_standard: config.max_guests,
+          actual_guests: actualGuests,
+          surcharge_rate: config.surcharge_rate,
+          foreign_ratio: config.foreign_ratio,
+        },
       },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    console.error("Calc Price Error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Lỗi tính toán: " + err.message });
   }
 };
 

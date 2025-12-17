@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import {
   Save,
   Settings,
-  BedDouble,
   AlertCircle,
   CheckCircle,
   Loader2,
   DollarSign,
   Users,
   Globe,
+  Home, // Icon cho phòng
 } from "lucide-react";
 import {
   getSystemConfig,
@@ -20,13 +20,13 @@ import {
 const AdminSettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("general"); // 'general' | 'rooms'
+  const [activeTab, setActiveTab] = useState("general");
 
   // Data States
   const [regulations, setRegulations] = useState({});
   const [roomTypes, setRoomTypes] = useState([]);
 
-  // Fetch Data khi vào trang
+  // Fetch Data
   useEffect(() => {
     fetchConfig();
   }, []);
@@ -54,16 +54,19 @@ const AdminSettingsPage = () => {
     try {
       setSaving(true);
 
-      // Update Surcharges (Cọc & Quá người)
-      await updateSurchargesConfig(
-        Number(regulations.deposit_percentage.value),
-        Number(regulations.extra_guest_surcharge_ratio?.value || 0) // Dùng optional chaining nếu DB chưa có key này
+      // Lấy giá trị từ state (dùng key chuẩn trong JSON)
+      const depositVal = Number(regulations.deposit_percentage?.value || 0);
+      const surchargeRateVal = Number(regulations.surcharge_rate?.value || 0);
+      const maxGuestVal = Number(regulations.max_guests_per_room?.value || 3);
+      const foreignVal = Number(
+        regulations.foreign_guest_surcharge_ratio?.value || 1
       );
 
-      // Update Guest Types (Nước ngoài)
-      await updateGuestConfig(
-        Number(regulations.foreign_guest_surcharge_ratio.value)
-      );
+      // Gọi API 1: Update Guest Config
+      await updateGuestConfig(foreignVal);
+
+      // Gọi API 2: Update Surcharges (Cọc, Quá người, Max người)
+      await updateSurchargesConfig(depositVal, surchargeRateVal, maxGuestVal);
 
       alert("✅ Đã lưu các quy định chung!");
     } catch (err) {
@@ -73,12 +76,12 @@ const AdminSettingsPage = () => {
     }
   };
 
-  // 2. Lưu cấu hình loại phòng (Tab Rooms)
+  // 2. Lưu cấu hình loại phòng
   const handleSaveRoomTypes = async () => {
     try {
       setSaving(true);
       await updateRoomTypesConfig(roomTypes);
-      alert("✅ Đã cập nhật thông tin loại phòng!");
+      alert("✅ Đã cập nhật giá phòng!");
     } catch (err) {
       alert("❌ Lỗi lưu loại phòng: " + err.message);
     } finally {
@@ -154,95 +157,105 @@ const AdminSettingsPage = () => {
           onSubmit={handleSaveGeneral}
           className="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
-          {/* Card: Đặt cọc */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-4 text-blue-700">
+          {/* Card: Đặt cọc & Max người */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-3 mb-2 text-blue-700">
               <DollarSign size={20} />
-              <h3 className="font-bold">Quy định Đặt cọc</h3>
+              <h3 className="font-bold">Cơ bản</h3>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phần trăm cọc (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={regulations.deposit_percentage?.value || 0}
-                  onChange={(e) =>
-                    handleRegChange("deposit_percentage", e.target.value)
-                  }
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Khách cần thanh toán trước bao nhiêu % tổng bill.
-                </p>
-              </div>
+
+            {/* Input: Deposit Percentage */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phần trăm cọc (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={regulations.deposit_percentage?.value || 0}
+                onChange={(e) =>
+                  handleRegChange("deposit_percentage", e.target.value)
+                }
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {regulations.deposit_percentage?.description}
+              </p>
+            </div>
+
+            {/* Input: Max Guests Per Room */}
+            <div className="pt-2 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                <Home size={14} /> Số khách tiêu chuẩn/phòng
+              </label>
+              <input
+                type="number"
+                min="1"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={regulations.max_guests_per_room?.value || 3}
+                onChange={(e) =>
+                  handleRegChange("max_guests_per_room", e.target.value)
+                }
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {regulations.max_guests_per_room?.description}
+              </p>
             </div>
           </div>
 
-          {/* Card: Phụ thu */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-4 text-orange-700">
+          {/* Card: Phụ thu (Surcharges) */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+            <div className="flex items-center gap-3 mb-2 text-orange-700">
               <AlertCircle size={20} />
               <h3 className="font-bold">Phụ thu (Surcharges)</h3>
             </div>
-            <div className="space-y-4">
-              {/* Khách nước ngoài */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <Globe size={14} /> Hệ số khách nước ngoài (x lần)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-                  value={
-                    regulations.foreign_guest_surcharge_ratio?.value || 1.5
-                  }
-                  onChange={(e) =>
-                    handleRegChange(
-                      "foreign_guest_surcharge_ratio",
-                      e.target.value
-                    )
-                  }
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  VD: 1.5 = Tăng 50% so với giá gốc.
-                </p>
-              </div>
 
-              {/* Quá số người (Nếu DB có key này) */}
-              {regulations.extra_guest_surcharge_ratio && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                    <Users size={14} /> Hệ số khách ở ghép (x lần giá gốc)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-                    value={
-                      regulations.extra_guest_surcharge_ratio?.value || 0.25
-                    }
-                    onChange={(e) =>
-                      handleRegChange(
-                        "extra_guest_surcharge_ratio",
-                        e.target.value
-                      )
-                    }
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    VD: 0.25 = Phụ thu 25% giá phòng/đêm cho mỗi người thừa.
-                  </p>
-                </div>
-              )}
+            {/* Input: Foreign Guest Surcharge */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                <Globe size={14} /> Hệ số khách nước ngoài (x lần)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="1"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+                value={regulations.foreign_guest_surcharge_ratio?.value || 1.5}
+                onChange={(e) =>
+                  handleRegChange(
+                    "foreign_guest_surcharge_ratio",
+                    e.target.value
+                  )
+                }
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {regulations.foreign_guest_surcharge_ratio?.description}
+              </p>
+            </div>
+
+            {/* Input: Surcharge Rate (Extra Guest) */}
+            <div className="pt-2 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                <Users size={14} /> Tỉ lệ phụ thu khách thứ 3 trở đi
+              </label>
+              <input
+                type="number"
+                step="0.05"
+                min="0"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+                value={regulations.surcharge_rate?.value || 0.25}
+                onChange={(e) =>
+                  handleRegChange("surcharge_rate", e.target.value)
+                }
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {regulations.surcharge_rate?.description} (VD: 0.25 là 25%)
+              </p>
             </div>
           </div>
 
+          {/* Submit Button */}
           <div className="md:col-span-2 flex justify-end">
             <button
               type="submit"
@@ -254,13 +267,13 @@ const AdminSettingsPage = () => {
               ) : (
                 <Save size={18} />
               )}
-              Lưu thay đổi
+              Lưu thay đổi chung
             </button>
           </div>
         </form>
       )}
 
-      {/* --- TAB 2: LOẠI PHÒNG --- */}
+      {/* --- TAB 2: LOẠI PHÒNG (Đã rút gọn) --- */}
       {activeTab === "rooms" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -277,13 +290,14 @@ const AdminSettingsPage = () => {
                 </div>
 
                 <div className="space-y-3">
+                  {/* Chỉ giữ lại Input Giá phòng */}
                   <div>
                     <label className="text-xs font-bold text-gray-500 uppercase">
                       Giá cơ bản (VND)
                     </label>
                     <input
                       type="number"
-                      className="w-full p-2 border border-gray-300 rounded focus:border-blue-500 outline-none font-medium text-right"
+                      className="w-full p-2 border border-gray-300 rounded focus:border-blue-500 outline-none font-medium text-right text-lg text-blue-700"
                       value={rt.base_price}
                       onChange={(e) =>
                         handleRoomTypeChange(
@@ -295,45 +309,9 @@ const AdminSettingsPage = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase">
-                        Max Khách
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="w-full p-2 border border-gray-300 rounded focus:border-blue-500 outline-none text-center"
-                        value={rt.max_guests}
-                        onChange={(e) =>
-                          handleRoomTypeChange(
-                            idx,
-                            "max_guests",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-gray-500 uppercase">
-                        Tỉ lệ Surcharge
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="1"
-                        className="w-full p-2 border border-gray-300 rounded focus:border-blue-500 outline-none text-center"
-                        value={rt.surcharge_ratio || 0.25}
-                        onChange={(e) =>
-                          handleRoomTypeChange(
-                            idx,
-                            "surcharge_ratio",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    </div>
+                  {/* Có thể hiển thị thông tin dạng Text để user biết (không sửa được) */}
+                  <div className="text-xs text-gray-400 mt-2 italic border-t pt-2">
+                    * Sức chứa và Phụ thu áp dụng theo quy định chung.
                   </div>
                 </div>
               </div>
@@ -351,7 +329,7 @@ const AdminSettingsPage = () => {
               ) : (
                 <CheckCircle size={18} />
               )}
-              Cập nhật Loại phòng
+              Cập nhật Giá phòng
             </button>
           </div>
         </div>

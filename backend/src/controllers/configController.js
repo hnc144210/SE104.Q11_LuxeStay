@@ -11,14 +11,14 @@ const supabase = createClient(
  */
 exports.getConfig = async (req, res) => {
   try {
-    const userRole = req.user?.role;
-    
-    if (userRole !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Chỉ admin mới có quyền xem cấu hình hệ thống"
-      });
-    }
+    // const userRole = req.user?.role;
+
+    // if (userRole !== "admin") {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Chỉ admin mới có quyền xem cấu hình hệ thống"
+    //   });
+    // }
 
     // Lấy tất cả regulations
     const { data: regulations, error: regErr } = await supabase
@@ -46,10 +46,10 @@ exports.getConfig = async (req, res) => {
 
     // Format regulations thành object dễ đọc
     const regulationsMap = {};
-    regulations.forEach(reg => {
+    regulations.forEach((reg) => {
       regulationsMap[reg.key] = {
         value: reg.value,
-        description: reg.description
+        description: reg.description,
       };
     });
 
@@ -60,16 +60,15 @@ exports.getConfig = async (req, res) => {
         regulations: regulationsMap,
         room_types: roomTypes,
         services: services,
-        customer_types: ["domestic", "foreign"]
-      }
+        customer_types: ["domestic", "foreign"],
+      },
     });
-
   } catch (error) {
     console.error("getConfig error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -82,18 +81,18 @@ exports.updateRoomTypes = async (req, res) => {
   try {
     const { room_types: roomTypes } = req.body;
     const userRole = req.user?.role;
-    
+
     if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Chỉ admin mới có quyền cập nhật loại phòng"
+        message: "Chỉ admin mới có quyền cập nhật loại phòng",
       });
     }
 
     if (!roomTypes || !Array.isArray(roomTypes) || roomTypes.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin room_types hoặc dữ liệu không hợp lệ"
+        message: "Thiếu thông tin room_types hoặc dữ liệu không hợp lệ",
       });
     }
 
@@ -102,21 +101,21 @@ exports.updateRoomTypes = async (req, res) => {
       if (!rt.id || !rt.name || !rt.base_price) {
         return res.status(400).json({
           success: false,
-          message: "Mỗi loại phòng phải có id, name và base_price"
+          message: "Mỗi loại phòng phải có id, name và base_price",
         });
       }
 
       if (rt.base_price <= 0) {
         return res.status(400).json({
           success: false,
-          message: "Giá phòng phải lớn hơn 0"
+          message: "Giá phòng phải lớn hơn 0",
         });
       }
 
       if (rt.max_guests && rt.max_guests < 1) {
         return res.status(400).json({
           success: false,
-          message: "Số khách tối đa phải ít nhất là 1"
+          message: "Số khách tối đa phải ít nhất là 1",
         });
       }
 
@@ -124,7 +123,7 @@ exports.updateRoomTypes = async (req, res) => {
         if (rt.surcharge_ratio < 0 || rt.surcharge_ratio > 1) {
           return res.status(400).json({
             success: false,
-            message: "Hệ số phụ thu phải từ 0-1 (0-100%)"
+            message: "Hệ số phụ thu phải từ 0-1 (0-100%)",
           });
         }
       }
@@ -134,7 +133,7 @@ exports.updateRoomTypes = async (req, res) => {
     const updatePromises = roomTypes.map(async (rt) => {
       const updates = {
         name: rt.name,
-        base_price: rt.base_price
+        base_price: rt.base_price,
       };
 
       if (rt.max_guests !== undefined) {
@@ -156,26 +155,25 @@ exports.updateRoomTypes = async (req, res) => {
     const results = await Promise.all(updatePromises);
 
     // Kiểm tra lỗi
-    const errors = results.filter(r => r.error);
+    const errors = results.filter((r) => r.error);
     if (errors.length > 0) {
       console.error("Update room types errors:", errors);
       throw errors[0].error;
     }
 
-    const updatedRoomTypes = results.map(r => r.data);
+    const updatedRoomTypes = results.map((r) => r.data);
 
     return res.status(200).json({
       success: true,
       message: "Cập nhật loại phòng thành công",
-      data: updatedRoomTypes
+      data: updatedRoomTypes,
     });
-
   } catch (error) {
     console.error("updateRoomTypes error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -186,20 +184,28 @@ exports.updateRoomTypes = async (req, res) => {
  */
 exports.updateGuestTypes = async (req, res) => {
   try {
-    const { foreign_surcharge_ratio: foreignSurchargeRatio } = req.body;
+    // ❌ CŨ (SAI): const { foreign_surcharge_ratio: foreignSurchargeRatio } = req.body;
+
+    // ✅ MỚI (ĐÚNG): Lấy đúng key 'foreign_guest_surcharge_ratio' từ Frontend gửi lên
+    const { foreign_guest_surcharge_ratio } = req.body;
+
+    // Đặt lại tên biến cho gọn để dùng ở dưới
+    const foreignSurchargeRatio = foreign_guest_surcharge_ratio;
+
     const userRole = req.user?.role;
-    
+
     if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Chỉ admin mới có quyền cập nhật cấu hình loại khách"
+        message: "Chỉ admin mới có quyền cập nhật cấu hình loại khách",
       });
     }
 
+    // Kiểm tra giá trị
     if (foreignSurchargeRatio === undefined || foreignSurchargeRatio < 1) {
       return res.status(400).json({
         success: false,
-        message: "Hệ số phụ thu khách nước ngoài phải >= 1"
+        message: "Hệ số phụ thu khách nước ngoài phải >= 1",
       });
     }
 
@@ -217,9 +223,10 @@ exports.updateGuestTypes = async (req, res) => {
       // Update
       const { data, error: updateErr } = await supabase
         .from("regulations")
-        .update({ 
+        .update({
           value: foreignSurchargeRatio,
-          description: "Hệ số phụ thu khách nước ngoài (" + foreignSurchargeRatio + "x)"
+          description:
+            "Hệ số phụ thu khách nước ngoài (" + foreignSurchargeRatio + "x)",
         })
         .eq("key", "foreign_guest_surcharge_ratio")
         .select()
@@ -234,7 +241,8 @@ exports.updateGuestTypes = async (req, res) => {
         .insert({
           key: "foreign_guest_surcharge_ratio",
           value: foreignSurchargeRatio,
-          description: "Hệ số phụ thu khách nước ngoài (" + foreignSurchargeRatio + "x)"
+          description:
+            "Hệ số phụ thu khách nước ngoài (" + foreignSurchargeRatio + "x)",
         })
         .select()
         .single();
@@ -249,16 +257,15 @@ exports.updateGuestTypes = async (req, res) => {
       data: {
         key: result.key,
         value: result.value,
-        description: result.description
-      }
+        description: result.description,
+      },
     });
-
   } catch (error) {
     console.error("updateGuestTypes error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -269,132 +276,111 @@ exports.updateGuestTypes = async (req, res) => {
  */
 exports.updateSurcharges = async (req, res) => {
   try {
-    const { 
+    const {
       deposit_percentage: depositPercentage,
-      extra_guest_surcharge_ratio: extraGuestSurchargeRatio 
+      surcharge_rate: surchargeRate, // SỬA: Đổi tên key khớp với DB
+      max_guests_per_room: maxGuestsPerRoom, // THÊM: Update số khách tối đa
     } = req.body;
+
     const userRole = req.user?.role;
-    
+
     if (userRole !== "admin") {
       return res.status(403).json({
         success: false,
-        message: "Chỉ admin mới có quyền cập nhật phụ thu"
+        message: "Chỉ admin mới có quyền cập nhật phụ thu",
       });
     }
 
     const updates = [];
 
-    // Cập nhật deposit_percentage
+    // --- 1. CẬP NHẬT deposit_percentage ---
     if (depositPercentage !== undefined) {
       if (depositPercentage < 0 || depositPercentage > 100) {
-        return res.status(400).json({
-          success: false,
-          message: "Phần trăm đặt cọc phải từ 0-100"
-        });
+        return res
+          .status(400)
+          .json({ success: false, message: "Phần trăm đặt cọc phải từ 0-100" });
       }
 
-      const { data: existing, error: findErr } = await supabase
+      const { error } = await supabase
         .from("regulations")
-        .select("*")
-        .eq("key", "deposit_percentage")
-        .maybeSingle();
+        .update({
+          value: depositPercentage,
+          description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)",
+        })
+        .eq("key", "deposit_percentage");
 
-      if (findErr) throw findErr;
+      if (error) throw error;
 
-      if (existing) {
-        const { error: updateErr } = await supabase
-          .from("regulations")
-          .update({ 
-            value: depositPercentage,
-            description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)"
-          })
-          .eq("key", "deposit_percentage");
-
-        if (updateErr) throw updateErr;
-      } else {
-        const { error: insertErr } = await supabase
-          .from("regulations")
-          .insert({
-            key: "deposit_percentage",
-            value: depositPercentage,
-            description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)"
-          });
-
-        if (insertErr) throw insertErr;
-      }
-
-      updates.push({
-        key: "deposit_percentage",
-        value: depositPercentage,
-        description: "Phần trăm tiền đặt cọc (" + depositPercentage + "%)"
-      });
+      updates.push({ key: "deposit_percentage", value: depositPercentage });
     }
 
-    // Cập nhật extra_guest_surcharge_ratio
-    if (extraGuestSurchargeRatio !== undefined) {
-      if (extraGuestSurchargeRatio < 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Hệ số phụ thu vượt khách phải >= 0"
-        });
-      }
-
-      const { data: existing, error: findErr } = await supabase
-        .from("regulations")
-        .select("*")
-        .eq("key", "extra_guest_surcharge_ratio")
-        .maybeSingle();
-
-      if (findErr) throw findErr;
-
-      if (existing) {
-        const { error: updateErr } = await supabase
-          .from("regulations")
-          .update({ 
-            value: extraGuestSurchargeRatio,
-            description: "Hệ số phụ thu vượt số khách (" + extraGuestSurchargeRatio + "x)"
-          })
-          .eq("key", "extra_guest_surcharge_ratio");
-
-        if (updateErr) throw updateErr;
-      } else {
-        const { error: insertErr } = await supabase
-          .from("regulations")
-          .insert({
-            key: "extra_guest_surcharge_ratio",
-            value: extraGuestSurchargeRatio,
-            description: "Hệ số phụ thu vượt số khách (" + extraGuestSurchargeRatio + "x)"
+    // --- 2. CẬP NHẬT surcharge_rate (Thay cho extra_guest...) ---
+    if (surchargeRate !== undefined) {
+      if (surchargeRate < 0) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Tỉ lệ phụ thu quá người phải >= 0",
           });
-
-        if (insertErr) throw insertErr;
       }
 
-      updates.push({
-        key: "extra_guest_surcharge_ratio",
-        value: extraGuestSurchargeRatio,
-        description: "Hệ số phụ thu vượt số khách (" + extraGuestSurchargeRatio + "x)"
-      });
+      const { error } = await supabase
+        .from("regulations")
+        .update({
+          value: surchargeRate,
+          description:
+            "Tỉ lệ phụ thu cho khách thứ 3 trở đi (" +
+            surchargeRate * 100 +
+            "%)",
+        })
+        .eq("key", "surcharge_rate"); // Dùng đúng key surcharge_rate
+
+      if (error) throw error;
+
+      updates.push({ key: "surcharge_rate", value: surchargeRate });
+    }
+
+    // --- 3. CẬP NHẬT max_guests_per_room ---
+    if (maxGuestsPerRoom !== undefined) {
+      if (maxGuestsPerRoom < 1) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Số khách tiêu chuẩn phải >= 1" });
+      }
+
+      const { error } = await supabase
+        .from("regulations")
+        .update({
+          value: maxGuestsPerRoom,
+          description: "Số khách tối đa trong một phòng",
+        })
+        .eq("key", "max_guests_per_room");
+
+      if (error) throw error;
+
+      updates.push({ key: "max_guests_per_room", value: maxGuestsPerRoom });
     }
 
     if (updates.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Không có thông tin nào để cập nhật"
+        message:
+          "Không có thông tin nào để cập nhật (Kiểm tra tên biến gửi lên)",
       });
     }
 
     return res.status(200).json({
       success: true,
       message: "Cập nhật phụ thu thành công",
-      data: updates
+      data: updates,
     });
-
   } catch (error) {
     console.error("updateSurcharges error:", error);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

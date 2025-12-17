@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../../components/layout/Navbar";
-import { createBooking, getCustomerDetail } from "./api/bookingApi"; // Import API vừa sửa
+import {
+  createBooking,
+  getCustomerDetail,
+  getBookingRegulations, // <--- Import hàm mới
+} from "./api/bookingApi";
 import { useAuthContext } from "../../features/context/AuthContext";
 import { Info, CheckCircle, Loader2 } from "lucide-react";
-
-// --- CẤU HÌNH HỆ THỐNG ---
-const SYSTEM_SETTINGS = {
-  SURCHARGE_RATE: 0.25,
-  FOREIGN_COEFFICIENT: 1.5,
-  DEPOSIT_PERCENT: 50,
-  STANDARD_CAPACITY: 3,
-};
 
 const BookingConfirmationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthContext(); // Dữ liệu fallback từ token (email, name)
+  const { user } = useAuthContext();
 
-  // State lưu thông tin chi tiết từ DB (có sđt, type)
+  // --- 1. STATE CONFIG (Thay thế hằng số cứng) ---
+  // Khởi tạo giá trị mặc định phòng hờ khi chưa load xong API
+  const [config, setConfig] = useState({
+    surcharge_rate: 0.25, // Mặc định 25%
+    foreign_guest_surcharge_ratio: 1.5, // Mặc định 1.5x
+    deposit_percentage: 50, // Mặc định 50%
+    max_guests_per_room: 3, // Mặc định 3 người
+  });
+
   const [customer, setCustomer] = useState(null);
-  const [loadingCustomer, setLoadingCustomer] = useState(true);
+  const [loadingData, setLoadingData] = useState(true); // Loading chung cho cả Customer và Config
 
-  // Lấy dữ liệu từ trang Search/Room Detail
+  // Lấy dữ liệu từ trang trước
   const bookingData = location.state || {};
   const {
     room,
@@ -31,7 +35,7 @@ const BookingConfirmationPage = () => {
     max_guests: initialMaxGuests,
   } = bookingData;
 
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [note, setNote] = useState("");
   const [numGuests, setNumGuests] = useState(parseInt(initialMaxGuests) || 1);
@@ -45,25 +49,46 @@ const BookingConfirmationPage = () => {
     depositAmount: 0,
   });
 
-  // --- 1. GỌI API LẤY THÔNG TIN KHÁCH (Khi vào trang) ---
+  // --- 2. FETCH DỮ LIỆU TỪ API ---
   useEffect(() => {
-    const fetchCustomerInfo = async () => {
+    const fetchData = async () => {
       try {
-        setLoadingCustomer(true);
-        const res = await getCustomerDetail(); // Gọi endpoint /users/me
-        if (res.success && res.data) {
-          setCustomer(res.data);
+        setLoadingData(true);
+
+        // Gọi song song 2 API: Lấy thông tin khách & Lấy quy định hệ thống
+        const [customerRes, configRes] = await Promise.all([
+          getCustomerDetail(),
+          getBookingRegulations(),
+        ]);
+
+        // Xử lý Customer
+        if (customerRes.success && customerRes.data) {
+          setCustomer(customerRes.data);
+        }
+
+        // Xử lý Config (Map dữ liệu từ DB regulations vào State)
+        if (configRes.success && configRes.data && configRes.data.regulations) {
+          const reg = configRes.data.regulations; // Object { key: { value: ... } }
+
+          setConfig({
+            surcharge_rate: Number(reg.surcharge_rate?.value) || 0.25,
+            foreign_guest_surcharge_ratio:
+              Number(reg.foreign_guest_surcharge_ratio?.value) || 1.5,
+            deposit_percentage: Number(reg.deposit_percentage?.value) || 50,
+            max_guests_per_room: Number(reg.max_guests_per_room?.value) || 3,
+          });
         }
       } catch (err) {
-        console.error("Fetch customer error:", err);
+        console.error("Lỗi tải dữ liệu:", err);
       } finally {
-        setLoadingCustomer(false);
+        setLoadingData(false);
       }
     };
-    fetchCustomerInfo();
+
+    fetchData();
   }, []);
 
-  // --- 2. TÍNH TOÁN GIÁ (Tự động chạy lại khi customer hoặc số người thay đổi) ---
+  // --- 3. TÍNH TOÁN GIÁ (Dựa trên config động) ---
   useEffect(() => {
     if (!room || !check_in_date || !check_out_date) return;
 
@@ -78,28 +103,29 @@ const BookingConfirmationPage = () => {
     // A. Tiền phòng
     const roomCharge = basePrice * nights;
 
-    // B. Phụ thu quá người
+    // B. Phụ thu quá người (Sử dụng config.max_guests_per_room & config.surcharge_rate)
     let surcharge = 0;
-    if (numGuests > SYSTEM_SETTINGS.STANDARD_CAPACITY) {
-      const extraPeople = numGuests - SYSTEM_SETTINGS.STANDARD_CAPACITY;
-      surcharge =
-        basePrice * SYSTEM_SETTINGS.SURCHARGE_RATE * extraPeople * nights;
+    if (numGuests > config.max_guests_per_room) {
+      const extraPeople = numGuests - config.max_guests_per_room;
+      surcharge = basePrice * config.surcharge_rate * extraPeople * nights;
     }
 
-    // C. Phụ thu khách nước ngoài
+    // C. Phụ thu khách nước ngoài (Sử dụng config.foreign_guest_surcharge_ratio)
     let foreignSurcharge = 0;
     const tempTotal = roomCharge + surcharge;
 
-    // Ưu tiên check type từ DB, nếu không có thì mặc định domestic
+    // Ưu tiên lấy type từ DB, fallback
     const isForeigner = customer?.type === "foreign";
 
     if (isForeigner) {
-      foreignSurcharge = tempTotal * (SYSTEM_SETTINGS.FOREIGN_COEFFICIENT - 1);
+      // Công thức: Tổng * (Hệ số - 1) = Phần chênh lệch thêm vào
+      foreignSurcharge = tempTotal * (config.foreign_guest_surcharge_ratio - 1);
     }
 
     const totalEstimate = tempTotal + foreignSurcharge;
-    const depositAmount =
-      totalEstimate * (SYSTEM_SETTINGS.DEPOSIT_PERCENT / 100);
+
+    // D. Tiền cọc (Sử dụng config.deposit_percentage)
+    const depositAmount = totalEstimate * (config.deposit_percentage / 100);
 
     setPriceBreakdown({
       nights,
@@ -109,11 +135,12 @@ const BookingConfirmationPage = () => {
       totalEstimate,
       depositAmount,
     });
-  }, [numGuests, customer, room, check_in_date, check_out_date]);
+  }, [numGuests, customer, room, check_in_date, check_out_date, config]); // Thêm config vào dependency
 
+  // --- 4. XỬ LÝ SUBMIT ---
   const handleConfirmBooking = async () => {
     try {
-      setLoading(true);
+      setSubmitting(true);
       setError(null);
 
       const payload = {
@@ -138,7 +165,6 @@ const BookingConfirmationPage = () => {
           num_guests: numGuests,
           deposit_amount: createdBooking.deposit_amount,
           total_amount: priceBreakdown.totalEstimate,
-          // Ưu tiên lấy email từ customer DB, nếu không thì lấy từ AuthContext
           customer_email: customer?.email || user?.email,
           note: note,
         };
@@ -148,7 +174,7 @@ const BookingConfirmationPage = () => {
       console.error("Booking Error:", err);
       setError(err.message || "Đặt phòng thất bại. Vui lòng thử lại.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -168,19 +194,18 @@ const BookingConfirmationPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* === CỘT TRÁI === */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 1. THÔNG TIN KHÁCH HÀNG */}
+            {/* THÔNG TIN KHÁCH HÀNG */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
                 👤 Thông tin khách hàng
               </h3>
 
-              {loadingCustomer ? (
+              {loadingData ? (
                 <div className="flex justify-center py-4 text-blue-500 gap-2">
-                  <Loader2 className="animate-spin" /> Đang tải hồ sơ...
+                  <Loader2 className="animate-spin" /> Đang tải dữ liệu...
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {/* Họ tên */}
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <span className="text-gray-500 block text-xs uppercase mb-1">
                       Họ tên
@@ -189,7 +214,6 @@ const BookingConfirmationPage = () => {
                       {customer?.full_name || user?.full_name || "---"}
                     </span>
                   </div>
-                  {/* Email */}
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <span className="text-gray-500 block text-xs uppercase mb-1">
                       Email
@@ -198,7 +222,6 @@ const BookingConfirmationPage = () => {
                       {customer?.email || user?.email || "---"}
                     </span>
                   </div>
-                  {/* SĐT */}
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <span className="text-gray-500 block text-xs uppercase mb-1">
                       Số điện thoại
@@ -207,10 +230,9 @@ const BookingConfirmationPage = () => {
                       {customer?.phone_number || "Chưa cập nhật"}
                     </span>
                   </div>
-                  {/* Loại khách */}
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <span className="text-gray-500 block text-xs uppercase mb-1">
-                      Quốc tịch / Loại khách
+                      Loại khách
                     </span>
                     <span
                       className={`font-bold px-2 py-0.5 rounded text-xs inline-block ${
@@ -228,11 +250,12 @@ const BookingConfirmationPage = () => {
               )}
             </div>
 
-            {/* 2. CHI TIẾT CHUYẾN ĐI (Giữ nguyên code cũ) */}
+            {/* CHI TIẾT CHUYẾN ĐI */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
                 ✈️ Chi tiết chuyến đi
               </h3>
+
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg text-center border border-blue-100">
                   <p className="text-sm text-blue-600 font-medium mb-1">
@@ -265,14 +288,12 @@ const BookingConfirmationPage = () => {
                   >
                     {[...Array(6)].map((_, i) => {
                       const val = i + 1;
-                      const isExtra = val > SYSTEM_SETTINGS.STANDARD_CAPACITY;
+                      const isExtra = val > config.max_guests_per_room; // Dùng config
                       return (
                         <option key={val} value={val}>
                           {val} người{" "}
                           {isExtra
-                            ? `(Phụ thu +${
-                                SYSTEM_SETTINGS.SURCHARGE_RATE * 100
-                              }%)`
+                            ? `(Phụ thu +${config.surcharge_rate * 100}%)` // Dùng config
                             : ""}
                         </option>
                       );
@@ -282,9 +303,8 @@ const BookingConfirmationPage = () => {
                 <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                   <Info size={12} />
                   <span>
-                    Tiêu chuẩn {SYSTEM_SETTINGS.STANDARD_CAPACITY} người. Khách
-                    thứ {SYSTEM_SETTINGS.STANDARD_CAPACITY + 1} trở đi tính thêm
-                    phí.
+                    Tiêu chuẩn {config.max_guests_per_room} người. Khách thứ{" "}
+                    {config.max_guests_per_room + 1} trở đi tính thêm phí.
                   </span>
                 </p>
               </div>
@@ -303,7 +323,7 @@ const BookingConfirmationPage = () => {
             </div>
           </div>
 
-          {/* === CỘT PHẢI: BILL (Giữ nguyên logic hiển thị giá) === */}
+          {/* === CỘT PHẢI: BILL === */}
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 sticky top-24">
               <div className="mb-4">
@@ -344,7 +364,8 @@ const BookingConfirmationPage = () => {
                 {priceBreakdown.foreignSurcharge > 0 && (
                   <div className="flex justify-between text-purple-600 bg-purple-50 px-2 py-1 rounded">
                     <span className="flex items-center gap-1">
-                      <Info size={12} /> Phụ thu khách QT
+                      <Info size={12} /> Phụ thu khách QT (x
+                      {config.foreign_guest_surcharge_ratio})
                     </span>
                     <span className="font-bold">
                       +{priceBreakdown.foreignSurcharge.toLocaleString()} đ
@@ -363,7 +384,7 @@ const BookingConfirmationPage = () => {
               <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-bold text-yellow-800 uppercase">
-                    Tiền cọc ({SYSTEM_SETTINGS.DEPOSIT_PERCENT}%)
+                    Tiền cọc ({config.deposit_percentage}%) {/* Dùng config */}
                   </span>
                 </div>
                 <div className="text-right text-lg font-extrabold text-yellow-700">
@@ -382,15 +403,15 @@ const BookingConfirmationPage = () => {
 
               <button
                 onClick={handleConfirmBooking}
-                disabled={loading}
+                disabled={submitting || loadingData}
                 className="w-full mt-6 bg-[#DF6951] text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-200 disabled:bg-gray-300 flex justify-center items-center gap-2"
               >
-                {loading ? (
+                {submitting ? (
                   <Loader2 className="animate-spin" />
                 ) : (
                   <CheckCircle size={20} />
                 )}
-                {loading ? "Đang xử lý..." : "Xác nhận đặt phòng"}
+                {submitting ? "Đang xử lý..." : "Xác nhận đặt phòng"}
               </button>
             </div>
           </div>

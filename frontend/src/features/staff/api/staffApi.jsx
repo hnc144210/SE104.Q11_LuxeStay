@@ -78,7 +78,15 @@ export const getStaffBookings = async (params) => {
 
 // Lấy danh sách Phòng
 export const getStaffRooms = async (params) => {
-  const response = await axios.get(`${BASE_URL}/rooms`, getAuthHeaders());
+  const response = await axios.get(`${BASE_URL}/rooms`, {
+    ...getAuthHeaders(),
+
+    params: {
+      status: "available", // Lọc phòng trống
+      limit: 100, // Lấy 100 phòng (tránh bị lỗi chỉ hiện 10 phòng)
+      ...params, // Cho phép ghi đè nếu cần
+    },
+  });
   return response.data;
 };
 
@@ -152,6 +160,21 @@ export const updateBooking = async (id, data) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || error.message;
+  }
+};
+export const getStaffRegulations = async () => {
+  try {
+    // Endpoint: http://localhost:3000/api/v1/config/regulations
+    const response = await axios.get(
+      `http://localhost:3000/api/v1/config/regulations`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message;
+    throw new Error(errorMessage);
   }
 };
 //src/features/staff/api/staffApi.jsx
